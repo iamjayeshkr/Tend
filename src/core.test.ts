@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { activityMinutes, categoryDayMinutes, currentBlock, dateKey, dayStats, defaultState, formatClock, formatMinutes, isLogWindowOpen, loadState, makeBackup, parseBackup, persistState, timerElapsed, timerSegments, timerTimingApproximate, uid, weekStats, type Activity, type ActiveTimer } from './core';
+import { schema1ActiveTimerState, schema1CompleteState, schema1InvalidBackups, schema1LegacyRawBackup, schema1LegacyState, schema1PausedTimerState, schema1RawBackup, schema1WrappedBackup } from './test-fixtures/schema1';
 
 const stamp = (value: string) => new Date(value).getTime();
 const activity = (start: string, end: string, category: Activity['category'] = 'study'): Activity => ({ id: uid(), title: 'Session', start: stamp(start), end: stamp(end), category, source: 'manual', createdAt: stamp(start), modifiedAt: stamp(end) });
@@ -331,3 +332,94 @@ describe('time-gated logging and app protection settings', () => {
   });
 });
 
+describe('schema-1 compatibility fixtures', () => {
+  it('covers every persisted record family with deterministic synthetic data', () => {
+    const state = schema1CompleteState();
+
+    expect(state.version).toBe(1);
+    expect(state.onboarded).toBe(true);
+    expect(state.routine).toHaveLength(2);
+    expect(state.tasks).toHaveLength(2);
+    expect(state.activities).toHaveLength(2);
+    expect(state.ideas).toHaveLength(2);
+    expect(state.reviews).toHaveLength(1);
+    expect(state.sets).toHaveLength(1);
+    expect(state.wakeLogs).toEqual({ '2026-09-12': 1_789_174_800_000 });
+    expect(state.sleepLogs).toEqual({ '2026-09-12': 1_789_234_200_000 });
+    expect(state.settings.restrictedPackages).toEqual(['com.instagram.android', 'com.google.android.youtube']);
+    expect(state.settings.appLimits).toEqual({ 'com.instagram.android': 20, 'com.google.android.youtube': 35 });
+    expect(state.settings.wakeLockMode).toBe('tasks');
+    expect(state.activities[0]?.intervals).toEqual([
+      { start: 1_789_182_000_000, end: 1_789_182_600_000 },
+      { start: 1_789_182_900_000, end: 1_789_183_800_000 },
+    ]);
+    expect(state.ideas[0]).not.toHaveProperty('title');
+    expect(state.ideas[1]).toMatchObject({ title: 'A deterministic question', modifiedAt: 1_789_187_400_000, pinned: true });
+    expect(state.timer).toBeNull();
+
+    expect(schema1LegacyState().settings.cooldownMinutes).toBe(30);
+    expect(schema1ActiveTimerState().timer?.pausedAt).toBeNull();
+    expect(schema1PausedTimerState().timer?.pausedAt).toBe(1_789_185_600_000);
+    expect(JSON.parse(schema1RawBackup()).version).toBe(1);
+    expect(JSON.parse(schema1WrappedBackup())).toMatchObject({ format: 'tend-backup', schemaVersion: 1 });
+    expect(Object.keys(schema1InvalidBackups)).toEqual(['corruptJson', 'unsupportedFormat', 'unsupportedVersion', 'duplicateTask', 'invalidActivityRange']);
+  });
+
+  it('round-trips complete, wrapped, and legacy snapshots without dropping fields', () => {
+    const complete = schema1CompleteState();
+    const legacy = schema1LegacyState();
+
+    expect(parseBackup(schema1RawBackup(complete))).toEqual(complete);
+    expect(parseBackup(schema1WrappedBackup(complete))).toEqual(complete);
+    expect(parseBackup(schema1LegacyRawBackup())).toEqual(legacy);
+    expect(parseBackup(schema1LegacyRawBackup()).ideas[0]).toEqual({
+      id: 'idea-legacy',
+      text: 'An untitled thought from an earlier release.',
+      kind: 'idea',
+      status: 'unexplored',
+      createdAt: 1_789_182_000_000,
+    });
+  });
+
+  it('retains linked interval history for active and paused timers', () => {
+    const active = parseBackup(schema1WrappedBackup(schema1ActiveTimerState()));
+    const paused = parseBackup(schema1WrappedBackup(schema1PausedTimerState()));
+
+    expect(active.timer).toMatchObject({ id: 'timer-active', taskId: 'task-linked', missionId: 'mission-fixture', pausedMs: 300_000 });
+    expect(timerElapsed(active.timer!, 1_789_183_800_000)).toBe(1_500_000);
+    expect(timerSegments(active.timer!, 1_789_183_800_000)).toEqual([
+      { start: 1_789_182_000_000, end: 1_789_182_600_000 },
+      { start: 1_789_182_900_000, end: 1_789_183_800_000 },
+    ]);
+    expect(paused.timer).toMatchObject({ id: 'timer-paused', pausedAt: 1_789_185_600_000, pausedMs: 300_000 });
+    expect(timerElapsed(paused.timer!, 1_789_234_200_000)).toBe(3_300_000);
+    expect(timerSegments(paused.timer!, 1_789_234_200_000)).toEqual([
+      { start: 1_789_182_000_000, end: 1_789_182_600_000 },
+      { start: 1_789_182_900_000, end: 1_789_185_600_000 },
+    ]);
+  });
+
+  it('rejects every invalid fixture and oversized input without accepting extra properties', () => {
+    for (const backup of Object.values(schema1InvalidBackups)) expect(() => parseBackup(backup)).toThrow();
+    expect(() => parseBackup(' '.repeat(32_000_001))).toThrow('empty or too large');
+
+    const polluted = JSON.parse(schema1RawBackup()) as Record<string, unknown>;
+    polluted.untrusted = 'discard me';
+    (polluted.settings as Record<string, unknown>).untrusted = 'discard me too';
+    const parsed = parseBackup(JSON.stringify(polluted));
+    expect(parsed).not.toHaveProperty('untrusted');
+    expect(parsed.settings).not.toHaveProperty('untrusted');
+  });
+
+  it('keeps the last durable native snapshot when a fixture write is rejected', async () => {
+    let durable = schema1RawBackup(schema1LegacyState());
+    vi.stubGlobal('AndroidBridge', {
+      loadState: () => durable,
+      saveState: () => false,
+    });
+
+    await expect(persistState(schema1CompleteState())).rejects.toThrow('could not be saved');
+    expect(await loadState()).toEqual(schema1LegacyState());
+    expect(durable).toBe(schema1RawBackup(schema1LegacyState()));
+  });
+});
