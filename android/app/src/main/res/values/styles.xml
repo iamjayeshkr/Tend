@@ -1,0 +1,21 @@
+<resources>
+    <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">#F7F5EE</item>
+        <item name="android:navigationBarColor">#F7F5EE</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:colorAccent">#335D43</item>
+        <item name="android:windowBackground">#F7F5EE</item>
+    </style>
+    <style name="Theme.QuickTaskDialog" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation.InputMethod</item>
+        <item name="android:statusBarColor">#6010241B</item>
+        <item name="android:navigationBarColor">#FAF8EF</item>
+        <item name="android:colorAccent">#264B38</item>
+    </style>
+    <color name="icon_background">#F7F5EE</color>
+</resources>

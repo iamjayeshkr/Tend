@@ -1,0 +1,8 @@
+<resources>
+    <string name="protection_name">Tend · Focus &amp; Screen Time</string>
+    <string name="protection_description">Tend helps you maintain healthy digital habits and focus by gently pausing selected apps or games during focus sessions or when daily time limits are reached. This service operates strictly on-device and inspects only the package name of the active foreground app. It NEVER accesses on-screen text, messages, passwords, keystrokes, or personal data. Everything is kept strictly private on your device. Phone, messages, and settings are never blocked.</string>
+    <string name="widget_tasks_name">Tend · Today\'s Tasks</string>
+    <string name="widget_tasks_desc">View and check off today\'s commitments, or add a quick task from your home screen.</string>
+    <string name="widget_timer_name">Tend · Work Goal Timer</string>
+    <string name="widget_timer_desc">One-tap focus timer and live work goal countdown on your home screen.</string>
+</resources>

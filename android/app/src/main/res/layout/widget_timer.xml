@@ -1,0 +1,183 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_timer_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_bg"
+    android:padding="14dp"
+    android:gravity="center_vertical">
+
+    <!-- IDLE STATE -->
+    <LinearLayout
+        android:id="@+id/widget_timer_idle_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:visibility="visible">
+
+        <LinearLayout
+            android:id="@+id/widget_timer_open_app"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="TEND  /  WORK GOAL"
+                android:textSize="10sp"
+                android:textColor="#5C6C5B"
+                android:letterSpacing="0.08"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_timer_idle_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Ready to focus"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="#264B38" />
+        </LinearLayout>
+
+        <!-- Presets -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/widget_btn_start_25"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="▶ 25m"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#FAF8EF"
+                android:background="@drawable/widget_btn_primary"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="7dp"
+                android:paddingBottom="7dp"
+                android:layout_marginEnd="6dp" />
+
+            <TextView
+                android:id="@+id/widget_btn_start_45"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="▶ 45m"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#264B38"
+                android:background="@drawable/widget_btn_secondary"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="7dp"
+                android:paddingBottom="7dp"
+                android:layout_marginEnd="6dp" />
+
+            <TextView
+                android:id="@+id/widget_btn_start_60"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="▶ 60m"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#264B38"
+                android:background="@drawable/widget_btn_secondary"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="7dp"
+                android:paddingBottom="7dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- RUNNING / ACTIVE STATE -->
+    <LinearLayout
+        android:id="@+id/widget_timer_running_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:id="@+id/widget_timer_running_click"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/widget_timer_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🎯 FOCUS SESSION"
+                android:textSize="10sp"
+                android:textColor="#5C6C5B"
+                android:letterSpacing="0.08"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_timer_running_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Deep Work"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#264B38"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/widget_timer_remaining"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="23m remaining"
+                android:textSize="13sp"
+                android:textColor="#738A79" />
+        </LinearLayout>
+
+        <!-- Controls -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!-- Pause / Resume Button -->
+            <TextView
+                android:id="@+id/widget_btn_pause_resume"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⏸ Pause"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#264B38"
+                android:background="@drawable/widget_btn_secondary"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="7dp"
+                android:paddingBottom="7dp"
+                android:layout_marginEnd="6dp" />
+
+            <!-- Finish Button -->
+            <TextView
+                android:id="@+id/widget_btn_finish"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⏹ Done"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#FAF8EF"
+                android:background="@drawable/widget_btn_primary"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="7dp"
+                android:paddingBottom="7dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

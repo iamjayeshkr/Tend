@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/quick_task_scrim"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#6610241B"
+    android:clickable="true"
+    android:focusable="true">
+
+    <!-- Bottom Sheet Card -->
+    <LinearLayout
+        android:id="@+id/quick_task_card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:orientation="vertical"
+        android:background="@drawable/quick_task_bottom_sheet_bg"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="24dp"
+        android:clickable="true"
+        android:focusable="true">
+
+        <!-- Drag Handle Indicator -->
+        <View
+            android:layout_width="38dp"
+            android:layout_height="4dp"
+            android:layout_gravity="center_horizontal"
+            android:background="@drawable/quick_task_drag_handle"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Header: Title and Close Button -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="TEND  •  QUICK COMMITMENT"
+                    android:textSize="11sp"
+                    android:textColor="#6E7D6D"
+                    android:letterSpacing="0.08"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="New Commitment"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:textColor="#1F3C2C"
+                    android:layout_marginTop="2dp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/quick_task_close"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:background="@drawable/quick_task_close_bg"
+                android:gravity="center"
+                android:text="✕"
+                android:textColor="#5C6C5B"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:clickable="true"
+                android:focusable="true" />
+        </RelativeLayout>
+
+        <!-- Task Input Box -->
+        <EditText
+            android:id="@+id/quick_task_input"
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:hint="What needs your attention today?"
+            android:textColorHint="#9A9E93"
+            android:textColor="#1F3C2C"
+            android:textSize="16sp"
+            android:background="@drawable/quick_task_input_bg"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:singleLine="true"
+            android:imeOptions="actionDone"
+            android:focusable="true"
+            android:focusableInTouchMode="true" />
+
+        <!-- Category Selector Header -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="AREA OF FOCUS"
+            android:textSize="11sp"
+            android:textColor="#6E7D6D"
+            android:letterSpacing="0.08"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Category Chips -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:overScrollMode="never">
+
+            <LinearLayout
+                android:id="@+id/quick_task_categories"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingVertical="2dp">
+
+                <TextView
+                    android:id="@+id/cat_work"
+                    android:layout_width="wrap_content"
+                    android:layout_height="38dp"
+                    android:text="💼 Work"
+                    android:gravity="center"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="#FAF8EF"
+                    android:background="@drawable/chip_selected"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:id="@+id/cat_study"
+                    android:layout_width="wrap_content"
+                    android:layout_height="38dp"
+                    android:text="📚 Study"
+                    android:gravity="center"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="#264B38"
+                    android:background="@drawable/chip_unselected"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:id="@+id/cat_project"
+                    android:layout_width="wrap_content"
+                    android:layout_height="38dp"
+                    android:text="🎯 Project"
+                    android:gravity="center"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="#264B38"
+                    android:background="@drawable/chip_unselected"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:id="@+id/cat_exercise"
+                    android:layout_width="wrap_content"
+                    android:layout_height="38dp"
+                    android:text="🏃 Health"
+                    android:gravity="center"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="#264B38"
+                    android:background="@drawable/chip_unselected"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:id="@+id/cat_life"
+                    android:layout_width="wrap_content"
+                    android:layout_height="38dp"
+                    android:text="🌿 Life"
+                    android:gravity="center"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="#264B38"
+                    android:background="@drawable/chip_unselected"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp" />
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <!-- Submit Button -->
+        <Button
+            android:id="@+id/quick_task_submit"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="+ Add to Today"
+            android:textAllCaps="false"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="#FAF8EF"
+            android:background="@drawable/widget_btn_primary"
+            android:layout_marginTop="20dp"
+            android:stateListAnimator="@null" />
+
+    </LinearLayout>
+
+</RelativeLayout>

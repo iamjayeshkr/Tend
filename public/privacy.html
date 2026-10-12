@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tend · Privacy Policy & Accessibility Disclosure</title>
+  <style>
+    :root {
+      --paper: #FAF8EF;
+      --ink: #1F3C2C;
+      --muted: #5C6C5B;
+      --line: #DDD8C4;
+      --green: #264B38;
+      --sage: #E8E5D5;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--paper);
+      color: var(--ink);
+      line-height: 1.65;
+      padding: 32px 20px;
+      margin: 0 auto;
+      max-width: 680px;
+    }
+    h1 {
+      font-size: 32px;
+      color: var(--green);
+      margin-bottom: 8px;
+    }
+    .kicker {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    .effective {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 24px;
+    }
+    h2 {
+      font-size: 18px;
+      margin-top: 28px;
+      margin-bottom: 8px;
+      color: var(--green);
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 6px;
+    }
+    p, li {
+      font-size: 14px;
+    }
+    ul {
+      padding-left: 20px;
+    }
+    a {
+      color: var(--green);
+      font-weight: 600;
+    }
+    .card {
+      background: var(--sage);
+      padding: 16px;
+      border-radius: 12px;
+      margin: 20px 0;
+    }
+    .alert {
+      border: 1px solid var(--line);
+      background: #FFFFFF;
+      padding: 16px;
+      border-radius: 12px;
+      margin: 16px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="kicker">TEND · PRIVACY & PERMISSIONS</div>
+  <h1>Privacy Policy</h1>
+  <div class="effective">Effective Date: September 2026 · Version 1.1</div>
+
+  <div class="card">
+    <strong>Our Core Privacy Pledge:</strong> Tend is private by design. No account. No cloud analytics. No third-party advertisements. Your entries, tasks, and usage metrics never leave your device.
+  </div>
+
+  <h2>1. Information Stored on Your Device</h2>
+  <p>All data generated within Tend is stored locally on your device (using IndexedDB and Android SharedPreferences):</p>
+  <ul>
+    <li>Personal commitments, tasks, and completion statuses.</li>
+    <li>Focus session logs, durations, and reflection notes.</li>
+    <li>Custom daily rhythms, routines, and wake/sleep times.</li>
+    <li>App restriction settings and daily minute limits.</li>
+  </ul>
+  <p>We do not operate servers that collect, store, or process your personal data.</p>
+
+  <h2>2. Device Permissions & Why We Request Them</h2>
+  <ul>
+    <li>
+      <strong>Accessibility Service (Optional):</strong> Used strictly to detect when a user-selected restricted app (e.g. Instagram or YouTube) enters the foreground, enabling Tend to show the gentle focus lock screen. Tend <em>never</em> accesses on-screen text, chats, passwords, keystrokes, or personal data.
+    </li>
+    <li>
+      <strong>Usage Access (Optional):</strong> Used solely to calculate daily screen time for restricted apps against your chosen minute budget.
+    </li>
+    <li>
+      <strong>Activity Recognition (Optional):</strong> Used locally to detect morning wakefulness (via step counting and motion sensors) to protect your morning focus without relying on naive wall-clock timers.
+    </li>
+    <li>
+      <strong>Exact Alarms & Notifications:</strong> Used solely to trigger your local wake-up, wind-down, and routine reminders on time.
+    </li>
+  </ul>
+
+  <h2>3. Google Play Protect & Accessibility Compliance</h2>
+  <div class="alert">
+    <strong>AccessibilityService API Usage Disclosure:</strong>
+    <p>Tend declares and uses an Android AccessibilityService (<code>app.tend.ProtectionService</code>) strictly for digital wellbeing and focus protection.</p>
+    <ul>
+      <li><strong>What Tend does:</strong> Listens for <code>typeWindowStateChanged</code> events to observe foreground package names of user-selected apps to enforce focus blocks and time limits.</li>
+      <li><strong>What Tend NEVER does:</strong> Tend does NOT read on-screen content (<code>canRetrieveWindowContent="false"</code>), does NOT record keystrokes (<code>canRequestFilterKeyEvents="false"</code>), does NOT perform automated gestures (<code>canPerformGestures="false"</code>), and does NOT transmit data over the network.</li>
+    </ul>
+  </div>
+
+  <h2>4. No Third-Party Trackers or Advertising</h2>
+  <p>Tend contains <strong>zero</strong> third-party analytics libraries (no Google Firebase, Facebook SDK, or telemetry trackers) and zero advertising frameworks. The application works completely offline.</p>
+
+  <h2>5. Data Retention & Deletion</h2>
+  <p>Your data stays on your device until you delete it. You can export a JSON backup at any time from <em>You &gt; Preferences &amp; backups</em>. To permanently erase all data, simply clear app storage in Android Settings or uninstall Tend.</p>
+
+  <h2>6. Terms of Service</h2>
+  <p>For more details on terms of use, please view our <a href="terms.html">Terms of Service</a>.</p>
+</body>
+</html>
