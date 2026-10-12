@@ -45,4 +45,14 @@ Every hunk was matched against its recorded context. A missing context would hav
 
 ## Later recovery entries
 
-Browser tests, Android `LockActivity`, compatibility fixtures, and asset-integrity tooling will be appended here when their owning tasks are implemented. Those entries will identify exact historical material separately from reconstructed or newly authored validation.
+### Browser journey suite
+
+| File | Classification | Historical evidence | Recovered SHA-256 |
+| --- | --- | --- | --- |
+| `tests/e2e.spec.ts` | Replayed historical source, followed by new validation | Complete replacement from session event `exec-d040487f-5b9e-4c08-b730-50f32157e08a` at 2026-09-13 11:21:51 UTC, followed by recorded `FileChange` patches at 11:23:08, 21:33:23, and 21:33:38 UTC | `d2bd1df70cb4751ca5970d6268bf132a2cbc5c0546cb97129f95d7fa24155f19` before new recovery tests |
+
+The recovered suite already covered first use, the four final destinations, the task/focus journey, notebook persistence, legacy notes, backup behavior, offline restart, browser protection disclosure, and a mocked Android consent flow. Its screenshot destinations were redirected from the tracked historical reference images to Playwright's ignored per-test output directory so fresh validation cannot overwrite recovery evidence.
+
+New tests marked in source comments cover reversible notebook deletion, future-schema rejection without data loss, and keyboard/reduced-motion dialog access. Existing recovered assertions were updated only where the final recovered product copy or behavior superseded an earlier test expectation. The completed suite has SHA-256 `d7e4393effe725c926102b1b35fc957088d8268ba6df8352dde3888c8bd0a7f9`.
+
+Android `LockActivity` and asset-integrity tooling will be appended here when their owning tasks are implemented. Those entries will identify exact historical material separately from reconstructed or newly authored validation.
