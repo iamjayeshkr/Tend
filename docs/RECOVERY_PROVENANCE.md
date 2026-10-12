@@ -55,4 +55,15 @@ The recovered suite already covered first use, the four final destinations, the 
 
 New tests marked in source comments cover reversible notebook deletion, future-schema rejection without data loss, and keyboard/reduced-motion dialog access. Existing recovered assertions were updated only where the final recovered product copy or behavior superseded an earlier test expectation. The completed suite has SHA-256 `d7e4393effe725c926102b1b35fc957088d8268ba6df8352dde3888c8bd0a7f9`.
 
-Android `LockActivity` and asset-integrity tooling will be appended here when their owning tasks are implemented. Those entries will identify exact historical material separately from reconstructed or newly authored validation.
+### Android protection activity
+
+| File | Classification | Recovery evidence | Recovered SHA-256 |
+| --- | --- | --- | --- |
+| `android/app/src/main/java/app/tend/LockActivity.java` | Reconstructed source | Public class surface and constant-pool strings from the surviving compiled release class (SHA-256 `74b0f8657d3c3a110cbf8cfc21e8e4cb6ded495b1af71793eb71d60a608f4458`), manifest registration, `ProtectionService`/`ProtectionStore` contracts, and the four saved `artifacts/android/protection-*.png` screens | `240e6d32c205b4e4c495cc77785bfa3d7c7538479b3cabd30761cc4d929402ae` |
+| `android/app/src/androidTest/java/app/tend/NativeSmokeTest.java` | Existing test runner extended with new validation | The pre-existing policy assertions remain intact; the new `protection-activity` mode validates the reconstructed lifecycle contract | `b3fbc3ce118a1da24a9efa53030c992116c9cb0b4be4b02f262efbed24ad5d3f` |
+
+No historical Java source for `LockActivity` was recovered. The implementation was written from the observable contract rather than copied from bytecode. It accepts the surviving service's `package` extra and the specification's `packageName`/`appName` aliases, renders all current service reasons, provides Tend, Home, and Android Accessibility exits, and preserves the temporary-break reason and monotonic countdown across recreation.
+
+Fresh API 34 evidence covered debug assembly/lint, native persistence and exact-timer delivery, the protection policy matrix, activity launch/recreation/dismissal, and a live Accessibility-service interception of the installed YouTube app. This is emulator evidence, not a physical-device claim.
+
+Asset-integrity tooling will be appended here when its owning task is implemented.

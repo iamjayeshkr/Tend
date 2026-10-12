@@ -5,6 +5,7 @@ import android.app.Instrumentation;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.os.Bundle;
+import android.os.SystemClock;
 import org.json.JSONObject;
 
 /** Runs on an isolated debug application; never touches a signed release installation. */
@@ -87,6 +88,78 @@ public final class NativeSmokeTest extends Instrumentation {
 
     private void protection(Context context, Bundle result) throws Exception {
         long now = System.currentTimeMillis();
+        if ("protection-activity".equals(mode)) {
+            ProtectionStore.prefs(context).edit().clear().commit();
+            ProtectionStore.configure(context, new JSONObject().put("enabled", true).put("focusUntil", now + 600000));
+            android.content.Intent intent = new android.content.Intent(context, LockActivity.class)
+                .putExtra("packageName", ProtectionStore.YOUTUBE)
+                .putExtra("appName", "YouTube")
+                .putExtra("reason", "focus")
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            Activity activity = startActivitySync(intent);
+            if (!(activity instanceof LockActivity)) throw new AssertionError("protection activity did not launch");
+            waitForIdleSync();
+            if (!LockActivity.isShowing()) throw new AssertionError("activity did not report itself as visible");
+            android.view.View settings = findView(activity, null, "Open Android accessibility settings");
+            if (settings == null || !settings.hasOnClickListeners()) throw new AssertionError("accessibility settings route missing");
+            if (new android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).resolveActivity(context.getPackageManager()) == null) {
+                throw new AssertionError("accessibility settings are not reachable on this device");
+            }
+            android.view.View request = findView(activity, "I need this app for a moment", null);
+            if (request == null) throw new AssertionError("temporary break action missing");
+            runOnMainSync(request::performClick);
+            waitForIdleSync();
+            android.widget.EditText input = (android.widget.EditText) findView(activity, null, "Temporary break reason");
+            android.widget.Button action = (android.widget.Button) findView(activity, null, "Temporary break action");
+            if (input == null || action == null) throw new AssertionError("deliberate break controls missing");
+            runOnMainSync(() -> input.setText("Study clip"));
+            runOnMainSync(action::performClick);
+            waitForIdleSync();
+            if (ProtectionStore.allowed(context, ProtectionStore.YOUTUBE, System.currentTimeMillis())) {
+                throw new AssertionError("activity granted a temporary break before ten seconds");
+            }
+            ActivityMonitor recreation = addMonitor(LockActivity.class.getName(), null, false);
+            runOnMainSync(activity::recreate);
+            Activity recreated = waitForMonitorWithTimeout(recreation, 5000);
+            removeMonitor(recreation);
+            if (!(recreated instanceof LockActivity)) throw new AssertionError("activity recreation failed");
+            waitForIdleSync();
+            android.widget.EditText restoredInput = (android.widget.EditText) findView(recreated, null, "Temporary break reason");
+            android.widget.Button restoredAction = (android.widget.Button) findView(recreated, null, "Temporary break action");
+            if (restoredInput == null || !"Study clip".contentEquals(restoredInput.getText())) throw new AssertionError("recreation lost the break reason");
+            if (restoredAction == null || (!restoredAction.getText().toString().startsWith("Take a breath")
+                && !"Allow 10 minutes".contentEquals(restoredAction.getText()))) {
+                throw new AssertionError("recreation reset the deliberate wait");
+            }
+            ProtectionStore.configure(context, new JSONObject().put("enabled", false));
+            LockActivity.dismissIfActive();
+            waitForIdleSync();
+            if (LockActivity.isShowing()) throw new AssertionError("owner disablement left the activity active");
+            long destroyDeadline = SystemClock.elapsedRealtime() + 5000;
+            while (!recreated.isDestroyed()
+                && SystemClock.elapsedRealtime() < destroyDeadline) {
+                SystemClock.sleep(50);
+            }
+            if (!recreated.isDestroyed()) {
+                throw new AssertionError("disabled activity did not finish cleanly");
+            }
+            Activity staleLaunch = startActivitySync(intent);
+            waitForIdleSync();
+            if (LockActivity.isShowing()) throw new AssertionError("disabled protection accepted a stale launch");
+            destroyDeadline = SystemClock.elapsedRealtime() + 5000;
+            while (!staleLaunch.isDestroyed() && SystemClock.elapsedRealtime() < destroyDeadline) {
+                SystemClock.sleep(50);
+            }
+            if (!staleLaunch.isDestroyed()) throw new AssertionError("stale launch did not finish cleanly");
+            ProtectionStore.configure(context, new JSONObject().put("enabled", true).put("focusUntil", now + 600000));
+            Activity relaunched = startActivitySync(intent);
+            if (!(relaunched instanceof LockActivity) || !LockActivity.isShowing()) throw new AssertionError("activity did not relaunch");
+            LockActivity.dismissIfActive();
+            waitForIdleSync();
+            if (LockActivity.isShowing()) throw new AssertionError("service dismissal left the activity active");
+            ProtectionStore.prefs(context).edit().clear().commit();
+            result.putString("stream", "PASS: protection activity launch, settings route, deliberate wait, recreation, owner disablement and service dismissal verified.\n"); return;
+        }
         if ("protection-tasks".equals(mode)) {
             ProtectionStore.prefs(context).edit().clear().commit();
             ProtectionStore.configure(context, new JSONObject().put("enabled", true));
@@ -188,5 +261,25 @@ public final class NativeSmokeTest extends Instrumentation {
     private static void assertDecision(String expected, boolean enabled, boolean selected, long focusUntil, boolean allowance, boolean usage, double used, long now) {
         String actual = ProtectionStore.decision(enabled, selected, focusUntil, allowance, usage, used, 30, now);
         if (!expected.equals(actual)) throw new AssertionError("protection policy: expected " + expected + " got " + actual);
+    }
+
+    private static android.view.View findView(Activity activity, String text, String description) {
+        return findView(activity.findViewById(android.R.id.content), text, description);
+    }
+
+    private static android.view.View findView(android.view.View view, String text, String description) {
+        if (view == null) return null;
+        if (description != null && view.getContentDescription() != null
+            && description.contentEquals(view.getContentDescription())) return view;
+        if (text != null && view instanceof android.widget.TextView
+            && text.contentEquals(((android.widget.TextView) view).getText())) return view;
+        if (view instanceof android.view.ViewGroup) {
+            android.view.ViewGroup group = (android.view.ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                android.view.View found = findView(group.getChildAt(i), text, description);
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 }
