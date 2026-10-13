@@ -2,7 +2,7 @@
 
 **Date:** 13 October 2026
 
-**Status:** Proposed for implementation; awaiting written-spec review
+**Status:** Approved for implementation on 13 October 2026
 
 **Scope:** Tend 2.0 Phase 3a — desktop/web accounts, secure cloud storage, and offline synchronization
 
@@ -204,6 +204,10 @@ Stores account-scoped conflict metadata and the minimum record versions needed f
 
 Stores event code, pseudonymous account reference, device id when relevant, success/failure, request id, and timestamp. It never stores record content, note text, tokens, passwords, raw authorization headers, or long-lived raw IP addresses.
 
+### `sync_retention_state`
+
+Stores the oldest still-supported pull cursor per owner after tombstone cleanup. A client behind that floor receives `CURSOR_EXPIRED` and performs a bounded full reconciliation; the server never pretends an incremental response is complete after required deletion history has expired.
+
 ### Database rules
 
 - Use lowercase identifiers, `timestamptz`, UUIDs for distributed record identifiers, and explicit check constraints.
@@ -299,6 +303,7 @@ The first account load pulls bounded pages from cursor zero. The app continues t
 - `401` requests one Clerk token refresh, then locks account sync if identity cannot be re-established.
 - `403` stops retrying and surfaces device/account authorization state.
 - `409` follows the conflict or in-flight-idempotency contract.
+- `410` with `CURSOR_EXPIRED` first pushes pending operations, then requests a bounded full snapshot and reconciles absent cloud records without discarding preserved local conflicts.
 - `422` quarantines the invalid local operation and preserves a recovery copy.
 - `429` waits for `Retry-After` and never spins.
 - `5xx` retains the queue and retries later.
@@ -381,6 +386,7 @@ HTTP semantics:
 - `401` missing, invalid, or expired authentication;
 - `403` authenticated but revoked or unauthorized;
 - `409` revision conflict or operation still in progress;
+- `410` pull cursor predates retained deletion history and requires full reconciliation;
 - `413` request too large;
 - `422` valid JSON that violates the domain schema or reuses an idempotency key with another payload;
 - `429` rate limited with `Retry-After`;
