@@ -11,7 +11,7 @@ npm ci
 bash scripts/android-build.sh
 ```
 
-The script discovers a local JDK/SDK without altering your shell configuration. You can set `JAVA_HOME` and `ANDROID_HOME` explicitly. It builds the web bundle, copies it into Android assets, compiles and shrinks the release application, runs Android release lint, signs it, and verifies the APK signature. Output: `releases/Tend-1.0.0.apk` and its SHA-256 checksum. `--skip-web` uses an already built `dist` directory.
+The script discovers a local JDK/SDK without altering your shell configuration. You can set `JAVA_HOME` and `ANDROID_HOME` explicitly. It builds and verifies the web bundle, copies and verifies the Android asset bundle, compiles and shrinks the release application, runs Android release lint, signs it, and verifies the APK signature. Output: `releases/Tend-1.1.14.apk` and its SHA-256 checksum. `--skip-web` uses an already built `dist` directory but still verifies both sides of the asset copy.
 
 Minimum Android: 8.0 (API 26). Target: Android 16 (API 36). Native code has no bundled `.so` libraries, avoiding application-specific native page-size dependencies.
 
@@ -25,10 +25,16 @@ The locally bundled UI receives `window.AndroidBridge`:
 | --- | --- |
 | `loadState()` | Full JSON snapshot, `null` for first use, or `__TEND_STORAGE_READ_ERROR__` on read failure. A read failure locks native writes until restart. |
 | `saveState(json)` | Boolean success, only after an atomic SQLite transaction. A previous snapshot is retained in the database. Invalid JSON is rejected. |
-| `getCapabilities()` | JSON with `platform`, `notifications`, `usageAccess`, and `exactAlarms`. |
-| `requestPermission(kind)` | User-invoked Android UI for `notifications`, `usage`, or `alarms`. |
+| `getCapabilities()` | JSON with `platform`, `notifications`, `usageAccess`, `accessibility`, `protectionEnabled`, and `exactAlarms`. |
+| `requestPermission(kind)` | User-invoked Android UI for `notifications`, `usage`, `accessibility`, or `alarms`. |
 | `getUsage()` | JSON with `granted`, `apps`, `available`, and `updatedAt` where available. App entries have package name, display name and today's foreground minutes. |
 | `configureLimits(json)` | `{enabled, instagram, youtube}` daily budgets, with Android periodic reminders. |
+| `getProtectionState()` | Current on-device protection configuration, capability state, selected packages, usage, tasks, and local exception history. |
+| `getInstalledApps()` | Locally discovered launcher applications eligible for owner selection; protected system/emergency/input/home/Tend surfaces are excluded. |
+| `configureProtection(json)` | Validates and stores owner-selected protection settings on-device. |
+| `verifyParentalPin(pin)` | Checks the optional local owner PIN. It is a friction control, not strong credential security. |
+| `completeDailyLog()` / `isLogPending()` | Completes or queries an enabled daily-log gate. |
+| `stopAlarm()` | Stops Tend's currently active native alarm alert. |
 | `scheduleAlarm(id, HH:mm, label)` | Persists and schedules a daily alarm, returning success. |
 | `cancelAlarm(id)` | Cancels both the OS alarm and persisted schedule. |
 | `scheduleTimer(endMs, title)` / `cancelTimer()` | One native timer completion alert, with reboot recovery. |
@@ -45,9 +51,11 @@ Backups and snapshots are capped at 25 MB. Export uses a temporary private file 
 - Routine alarms and focus completion use `AlarmManager` and notification channels, including the system alarm sound for routine alarms. Notifications must be granted. Android 12+ exact-alarm access must be enabled for precise timing. Without it, alarms use an inexact fallback and Android may delay delivery.
 - These are notification alarms, not a full-screen continuously ringing alarm-clock service with snooze/dismiss actions. Sound, notification channel settings, Do Not Disturb and manufacturer behavior can affect the alert. Verify wake-up reliability on the intended device before relying on it.
 - Daily schedules restore after boot, app upgrade, time/timezone changes, and exact-alarm access grants. Android force-stop blocks background delivery until the app is reopened. Powered-off devices cannot deliver alerts.
-- Usage access is optional and user-granted. Instagram, YouTube, and Chrome foreground activity is derived from Android usage events across local midnight. Device event retention and multi-window behavior can affect totals.
-- App budgets use `JobScheduler` at a minimum 15-minute interval. Battery policies may delay checks further. Reminders are deduplicated by date, app and warning level. Changing a budget resets its warning level. This version **does not block apps** or draw over other apps.
-- The app requests no accessibility, overlay, location, contacts, camera, microphone or network access. No advertising, analytics or crash-upload SDKs are included.
+- Usage access is optional and user-granted. Foreground activity is derived from Android usage events across local midnight. Device event retention and multi-window behavior can affect totals. Legacy budget reminders use `JobScheduler` at a minimum 15-minute interval, and battery policies may delay checks.
+- App protection is separately opt-in. The owner selects eligible installed packages and enables Tend's Accessibility service in Android settings. The service listens only for window-state package changes; its service declaration forbids window-content retrieval, gestures, and key filtering. It does not use an overlay or device-admin privilege.
+- When an enabled focus, task, cooldown, daily-log, morning, or usage rule applies, `LockActivity` explains the boundary. Tend, Home, and Android Accessibility settings remain available exits. Eligible non-mandatory rules offer a device-local 10-minute break only after a reason and a 10-second deliberate wait.
+- System, emergency/dialer, launcher/home, input-method, Android Settings, and Tend packages are exempt. Disabling protection or revoking Accessibility closes the active protection screen.
+- `ACTIVITY_RECOGNITION` supports optional wake-confidence signals when the OS grants it; absence degrades that signal rather than blocking the journal. The app requests no Internet, overlay, device-admin, location, contacts, camera, or microphone permission. No advertising, analytics, or crash-upload SDK is included.
 
 ## Native checks
 
@@ -57,7 +65,9 @@ With an isolated Android emulator or test device connected:
 bash scripts/android-test.sh
 ```
 
-The script builds and installs `app.tend.debug` plus its test APK. The instrumentation checks SQLite save/reopen, invalid-write protection, alarm input validation, schedule persistence/restore/cancel, usage API response shape, notification channel creation, and a real exact timer receiver/notification. It resets only its isolated debug database. It does not modify the signed `app.tend` installation.
+The script builds and installs `app.tend.debug` plus its test APK. The default instrumentation checks SQLite save/reopen, invalid-write protection, alarm input validation, schedule persistence/restore/cancel, usage API response shape, notification channel creation, and a real exact timer receiver/notification. It resets only its isolated debug database. It does not modify the signed `app.tend` installation.
+
+Protection-specific instrumentation covers opt-in policy, selected packages, local exception timing/expiry, task/focus/cooldown behavior, `LockActivity` recreation, owner disablement, settings reachability, and service dismissal. Commands and evidence rules are maintained in [../docs/TESTING.md](../docs/TESTING.md).
 
 A successful emulator test does not establish manufacturer-specific physical-device behavior. Test notification permissions, alarm sound/lockscreen delivery, denied/revoked exact access, real usage totals, overnight boundaries, reboot, battery saver, backup picker flows, process recreation and a signed in-place update on the intended phone before wider distribution.
 

@@ -2,7 +2,7 @@
 
 **Recovery branch:** `rudra/tend-recovery-baseline`
 
-**Recovery date:** 12 October 2026
+**Recovery dates:** 12–13 October 2026
 
 This record distinguishes recovered product source from newly authored validation. Historical evidence is read-only and is not itself proof that the recovered commit works; current build and test results provide that proof.
 
@@ -45,6 +45,15 @@ Every hunk was matched against its recorded context. A missing context would hav
 
 ## Later recovery entries
 
+### Schema-1 validation
+
+| File | Classification | Purpose | SHA-256 |
+| --- | --- | --- | --- |
+| `src/test-fixtures/schema1.ts` | New synthetic validation fixture | Complete, legacy-optional, active-timer, and paused-timer states with no extracted user content | `b0c02fa86ad534f8ed616d48594e60c66ebd63d2ff05b24c572ce5e6b6c7ad04` |
+| `src/core.test.ts` | Existing tests extended with new validation | Pins all schema-1 fixtures, future-schema rejection, durable snapshot retention, and invalid-write behavior | `218ae6d18a27887993700ad6901b670626e94634c6f1389ebbc29d3b7a213898` |
+
+No installed journal or private backup was read to create these fixtures. Names, dates, tasks, activities, and notebook text are synthetic.
+
 ### Browser journey suite
 
 | File | Classification | Historical evidence | Recovered SHA-256 |
@@ -74,3 +83,24 @@ Fresh API 34 evidence covered debug assembly/lint, native persistence and exact-
 | `scripts/verify-assets.test.mjs` | New validation | Covers a missing hashed script, a complete recursive bundle, and path traversal outside the bundle root | `d211f78057638f628d40a7b90e8b42a355e99afbb310b95da62f853d019b7a3f` |
 
 The verifier runs after the web service worker is generated and again on both sides of the Android asset copy. A fresh clean install and audit replaced the vulnerable transitive `source-map-js` 1.2.1 lock entry with 1.2.2; no Vite major version or unrelated dependency was forced. The resulting web and Android bundles each resolved 25 local files during the recovery check.
+
+## Recovery commits
+
+1. `74cf42e` — recovered desktop browser source and provenance.
+2. `0cd8376` — pinned schema-1 compatibility.
+3. `162b871` — recovered and extended browser journeys.
+4. `55f804a` — reconstructed and tested Android protection activity.
+5. `4bb9d51` — added bundle integrity checks and repaired the dependency lock.
+
+Planning commits `cb3b42b` and `e50d59d` define the approved recovery-only scope. Final documentation and verification are recorded separately so historical recovery inputs are not confused with current pass evidence.
+
+## Known limitations and evidence boundary
+
+- `src/App.tsx` is a deterministic replay of archived full-file and patch events, not a byte-for-byte file recovered from Git.
+- `LockActivity.java` is reconstructed from its observable contract, compiled class surface, adjacent source, and reference screenshots; no historical Java source was found.
+- Browser tests combine replayed historical source with clearly identified new recovery validation. Their current successful execution, not the historical report, is the pass evidence.
+- API 34 emulator checks cover Android compilation, storage, timers, policy, lifecycle, and a live selected-application interception. They do not establish physical-device or OEM behavior.
+- Generated bundles, copied Android assets, reports, APKs, local SDK properties, and signing material remain ignored and are not recovery source.
+- This baseline intentionally has no accounts, cloud sync, backend, remote analytics, or Tauri desktop application. Browser “app shield” copy cannot provide native application interception.
+
+The current verification commands and status rules are maintained in `docs/TESTING.md`; release assertions must satisfy `docs/RELEASE_CHECKLIST.md`.
