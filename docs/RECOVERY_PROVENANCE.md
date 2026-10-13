@@ -66,4 +66,11 @@ No historical Java source for `LockActivity` was recovered. The implementation w
 
 Fresh API 34 evidence covered debug assembly/lint, native persistence and exact-timer delivery, the protection policy matrix, activity launch/recreation/dismissal, and a live Accessibility-service interception of the installed YouTube app. This is emulator evidence, not a physical-device claim.
 
-Asset-integrity tooling will be appended here when its owning task is implemented.
+### Asset integrity and dependency repair
+
+| File | Classification | Purpose | SHA-256 |
+| --- | --- | --- | --- |
+| `scripts/verify-assets.mjs` | New validation | Fails closed on missing or bundle-escaping local HTML, stylesheet/font, manifest/icon, and service-worker cache references without making network requests | `2b637ba67d980d3968fd99a6c239966925028ad25716fa353036144d7bdf5912` |
+| `scripts/verify-assets.test.mjs` | New validation | Covers a missing hashed script, a complete recursive bundle, and path traversal outside the bundle root | `d211f78057638f628d40a7b90e8b42a355e99afbb310b95da62f853d019b7a3f` |
+
+The verifier runs after the web service worker is generated and again on both sides of the Android asset copy. A fresh clean install and audit replaced the vulnerable transitive `source-map-js` 1.2.1 lock entry with 1.2.2; no Vite major version or unrelated dependency was forced. The resulting web and Android bundles each resolved 25 local files during the recovery check.

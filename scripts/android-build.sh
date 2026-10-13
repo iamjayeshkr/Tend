@@ -4,10 +4,12 @@ source "$(dirname "$0")/android-env.sh"
 cd "$TEND_REPO_ROOT"
 if [[ "${1:-}" != '--skip-web' ]]; then npm run build; fi
 if [[ ! -f dist/index.html ]]; then echo 'No web build found at dist/index.html.' >&2; exit 1; fi
+node scripts/verify-assets.mjs dist/index.html dist
 mkdir -p android/app/src/main/assets/public
 # This directory contains only the generated web bundle.
 find android/app/src/main/assets/public -mindepth 1 -maxdepth 1 -exec rm -rf {} +
 cp -R dist/. android/app/src/main/assets/public/
+node scripts/verify-assets.mjs android/app/src/main/assets/public/index.html android/app/src/main/assets/public
 printf 'sdk.dir=%s\n' "$ANDROID_HOME" > android/local.properties
 if [[ ! -f android/signing.properties ]]; then
   umask 077

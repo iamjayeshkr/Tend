@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "tsc -b && vite build && node scripts/build-sw.mjs",
+    "build": "tsc -b && vite build && node scripts/build-sw.mjs && npm run verify:assets",
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest run src",
+    "test:unit": "vitest run src",
+    "typecheck": "tsc -b",
+    "verify:assets": "node scripts/verify-assets.mjs dist/index.html dist",
     "test:e2e": "playwright test"
   },
   "dependencies": {
