@@ -1,6 +1,12 @@
 node_modules/
 dist/
+.env
+.env.*
+!.env.example
 *.local
+coverage/
+supabase/.branches/
+supabase/.temp/
 android/.gradle/
 android/**/build/
 android/local.properties
@@ -16,4 +22,3 @@ releases/
 playwright-report/
 test-results/
 .DS_Store
-
