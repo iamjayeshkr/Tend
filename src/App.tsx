@@ -70,6 +70,7 @@ import { Garden, Sprout, SunDoodle, Star } from "./Doodles";
 import { Welcome, TodayPage, YourSpace } from "./Experience";
 import Notebook from "./Notebook";
 import { ProtectionPanel } from "./ProtectionPanel";
+import { AuthControls } from "./auth/AuthControls";
 const native = () => (window as any).AndroidBridge;
 const categories: Category[] = [
   "study",
@@ -752,7 +753,7 @@ export default function App() {
         <main>
           {!["today","notebook"].includes(page)&&<div className="page-heading"><div>{["rhythm","reflect"].includes(page)&&<button className="back-to-space" onClick={()=>go("you")}><ChevronLeft size={17}/>You</button>}<Pill>{headerCopy[page].label}</Pill><h1>{headerCopy[page].title}</h1><p>{headerCopy[page].subtitle}</p></div></div>}
           {page === "today" && <TodayPage state={s} now={now} commit={commit} onFocus={openFocus} onTask={()=>setModal("task")} onReview={()=>{setMood(selectedReview?.mood||3);setModal("review")}} onRhythm={()=>{setFilter("plan");go("rhythm")}} onLog={openLog} onWorkout={()=>{setSetCount(0);setModal("workout")}} onWake={()=>quickLife("wake")} onBored={()=>setModal("bored")} onGuide={()=>setShowGuide(true)}/>}
-          {page === "you" && <YourSpace state={s} onRhythm={()=>{setFilter("plan");go("rhythm")}} onReflect={()=>go("reflect")} onLog={()=>{setFilter("actual");go("rhythm")}} onSettings={()=>setModal("settings")} onGuide={()=>setShowGuide(true)} onShield={()=>{go("focus");setFocusTab("shield")}}/>}
+          {page === "you" && <><AuthControls/><YourSpace state={s} onRhythm={()=>{setFilter("plan");go("rhythm")}} onReflect={()=>go("reflect")} onLog={()=>{setFilter("actual");go("rhythm")}} onSettings={()=>setModal("settings")} onGuide={()=>setShowGuide(true)} onShield={()=>{go("focus");setFocusTab("shield")}}/></>}
           {page === "rhythm" && (
             <>
               <div className="page-toolbar">

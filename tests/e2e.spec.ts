@@ -88,6 +88,9 @@ test('guided first run leads to one task and a four-tab app', async ({ page }, t
     await assertNoHorizontalOverflow(page);
     await page.screenshot({ path: testInfo.outputPath(`${section.toLowerCase()}.png`), fullPage: true, animations: 'disabled' });
   }
+  const account = page.getByRole('region', { name: 'Account and cloud sync' });
+  await expect(account).toContainText('Cloud sync is optional');
+  await expect(account).toContainText('Your data stays on this device');
   await page.reload();
   await expect(page.getByRole('button', { name: 'Make it mine', exact: true })).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Your next step' })).toContainText(FIRST_TASK);
