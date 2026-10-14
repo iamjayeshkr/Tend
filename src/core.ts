@@ -1,4 +1,5 @@
 /** Tend's offline data contract and calendar-aware day engine. */
+import { LocalRepository } from './data/localRepository'
 export type Category = 'study' | 'work' | 'project' | 'exercise' | 'rest' | 'life';
 export interface RoutineBlock { id: string; title: string; start: string; end: string; category: Category }
 export interface Task { id: string; title: string; done: boolean; date: string; category: Category }
@@ -38,9 +39,6 @@ export interface AppState {
 
 const MINUTE = 60_000;
 const CATEGORIES: readonly Category[] = ['study', 'work', 'project', 'exercise', 'rest', 'life'];
-const STORAGE_KEY = 'tend.state.v1';
-const DB_NAME = 'tend';
-const STORE_NAME = 'snapshots';
 
 export function uid(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -450,31 +448,6 @@ function nativeStorage(): NativeStorageBridge | undefined {
   return bridge && typeof bridge.loadState === 'function' && typeof bridge.saveState === 'function' ? bridge as NativeStorageBridge : undefined;
 }
 
-let dbPromise: Promise<IDBDatabase> | undefined;
-function openDatabase(): Promise<IDBDatabase> {
-  if (!dbPromise) {
-    dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME, 1);
-      let abandoned = false;
-      request.onupgradeneeded = () => {
-        if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME);
-      };
-      request.onerror = () => reject(request.error ?? new Error('Could not open local storage.'));
-      request.onblocked = () => {
-        abandoned = true;
-        reject(new Error('Close other Tend tabs to finish updating local storage.'));
-      };
-      request.onsuccess = () => {
-        const db = request.result;
-        if (abandoned) { db.close(); return; }
-        db.onversionchange = () => { db.close(); dbPromise = undefined; };
-        resolve(db);
-      };
-    }).catch((error: unknown) => { dbPromise = undefined; throw error; });
-  }
-  return dbPromise;
-}
-
 let writes: Promise<void> = Promise.resolve();
 
 export async function loadState(): Promise<AppState> {
@@ -482,16 +455,10 @@ export async function loadState(): Promise<AppState> {
   const bridge = nativeStorage();
   let raw: unknown;
   if (bridge) raw = await bridge.loadState();
-  else if (typeof indexedDB === 'undefined') raw = localStorage.getItem(STORAGE_KEY);
   else {
-    const db = await openDatabase();
-    raw = await new Promise<unknown>((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, 'readonly');
-      const request = transaction.objectStore(STORE_NAME).get(STORAGE_KEY);
-      transaction.oncomplete = () => resolve(request.result);
-      transaction.onabort = () => reject(transaction.error ?? new Error('Could not read saved data.'));
-      transaction.onerror = () => reject(transaction.error ?? new Error('Could not read saved data.'));
-    });
+    const repository = await LocalRepository.open();
+    try { raw = await repository.loadWorkspace('guest'); }
+    finally { repository.close(); }
   }
   if (raw === undefined || raw === null || raw === '') return defaultState();
   return typeof raw === 'string' ? parseBackup(raw) : validateState(raw);
@@ -508,15 +475,11 @@ export function persistState(state: AppState): Promise<void> {
       if (result === false || (typeof result === 'string' && /^error\b/i.test(result))) throw new Error('Your changes could not be saved on this device.');
       return;
     }
-    if (typeof indexedDB === 'undefined') { localStorage.setItem(STORAGE_KEY, snapshot); return; }
-    const db = await openDatabase();
-    await new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, 'readwrite');
-      transaction.objectStore(STORE_NAME).put(snapshot, STORAGE_KEY);
-      transaction.oncomplete = () => resolve();
-      transaction.onabort = () => reject(transaction.error ?? new Error('Your changes could not be saved on this device.'));
-      transaction.onerror = () => reject(transaction.error ?? new Error('Your changes could not be saved on this device.'));
-    });
+    const repository = await LocalRepository.open();
+    try {
+      const previous = await repository.loadWorkspace('guest');
+      await repository.commit('guest', previous, JSON.parse(snapshot) as AppState, []);
+    } finally { repository.close(); }
   });
   writes = write;
   return write;

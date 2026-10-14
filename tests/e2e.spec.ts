@@ -29,12 +29,12 @@ async function go(page: Page, section: 'Today' | 'Focus' | 'Notebook' | 'You') {
 
 async function readState(page: Page): Promise<any> {
   return page.evaluate(() => new Promise((resolve, reject) => {
-    const open = indexedDB.open('tend', 1);
+    const open = indexedDB.open('tend');
     open.onerror = () => reject(open.error);
     open.onsuccess = () => {
       const db = open.result;
       const transaction = db.transaction('snapshots', 'readonly');
-      const get = transaction.objectStore('snapshots').get('tend.state.v1');
+      const get = transaction.objectStore('snapshots').get('workspace:guest');
       transaction.oncomplete = () => { db.close(); resolve(get.result ? JSON.parse(get.result) : null); };
       transaction.onerror = () => reject(transaction.error);
     };
