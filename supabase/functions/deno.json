@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "lib": ["deno.window", "dom", "dom.iterable", "es2022"],
+    "strict": true,
+    "noImplicitOverride": true
+  },
+  "imports": {
+    "@clerk/backend": "npm:@clerk/backend@3.23.2",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.117.3",
+    "@upstash/ratelimit": "npm:@upstash/ratelimit@2.2.0",
+    "@upstash/redis": "npm:@upstash/redis@1.39.0",
+    "zod": "npm:zod@4.6.7"
+  }
+}
