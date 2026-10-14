@@ -1,7 +1,7 @@
 export type TendIdentity =
   | { status: 'guest'; cloudAvailable: false }
   | { status: 'loading'; cloudAvailable: true }
-  | { status: 'locked'; cloudAvailable: true }
+  | { status: 'locked'; cloudAvailable: true; userId?: string }
   | {
       status: 'signedIn'
       cloudAvailable: true

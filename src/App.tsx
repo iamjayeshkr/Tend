@@ -71,6 +71,9 @@ import { Welcome, TodayPage, YourSpace } from "./Experience";
 import Notebook from "./Notebook";
 import { ProtectionPanel } from "./ProtectionPanel";
 import { AuthControls } from "./auth/AuthControls";
+import { useTendIdentity } from "./auth/TendAuthProvider";
+import { LocalRepository } from "./data/localRepository";
+import { WorkspaceManager, type WorkspaceSelection } from "./data/workspaceManager";
 const native = () => (window as any).AndroidBridge;
 const categories: Category[] = [
   "study",
@@ -191,6 +194,7 @@ function Toggle({
   );
 }
 export default function App() {
+  const identity = useTendIdentity();
   const [s, setS] = useState<AppState | null>(null),
     stateRef = useRef<AppState | null>(null),
     queue = useRef(Promise.resolve());
@@ -201,6 +205,10 @@ export default function App() {
     [toast, setToast] = useState(""),
     [busy, setBusy] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [workspaceLock, setWorkspaceLock] = useState<Extract<WorkspaceSelection, {kind:"locked"}> | null>(null);
+  const accountRepository = useRef<LocalRepository | null>(null);
+  const workspaceId = useRef("guest");
+  const workspacePersisted = useRef(true);
   const [focusTab,setFocusTab] = useState<"timer"|"shield">("timer");
   const [formError,setFormError] = useState("");
   const [focusTaskId,setFocusTaskId] = useState<string|null>(null);
@@ -227,14 +235,54 @@ export default function App() {
     dialogRef = useRef<HTMLDivElement>(null),
     timerAlert = useRef<string | null>(null);
   const notify = (message: string) => setToast(message);
+  const identityUserId = "userId" in identity ? identity.userId : undefined;
   useEffect(() => {
-    loadState()
-      .then((v) => {
-        stateRef.current = v;
-        setS(v);
-        setFocusMins(v.settings.focusMinutes);
-      })
-      .catch((e) => setLoadError(String(e.message || e)));
+    let cancelled = false;
+    stateRef.current = null;
+    setS(null);
+    setLoadError("");
+    setWorkspaceLock(null);
+    const openWorkspace = async () => {
+      await queue.current.catch(() => undefined);
+      accountRepository.current?.close();
+      accountRepository.current = null;
+      if (identity.status === "loading") {
+        if (!cancelled) setWorkspaceLock({kind:"locked",workspaceId:null,ownerId:null,reason:"identity-loading"});
+        return;
+      }
+      if (identity.status === "guest" || (identity.status === "locked" && !identity.userId)) {
+        const value = await loadState();
+        if (cancelled) return;
+        workspaceId.current = "guest";
+        workspacePersisted.current = true;
+        stateRef.current = value;
+        setS(value);
+        setFocusMins(value.settings.focusMinutes);
+        return;
+      }
+      const repository = await LocalRepository.open();
+      const selection = await new WorkspaceManager(repository).select(identity);
+      if (cancelled) { repository.close(); return; }
+      if (selection.kind === "locked") {
+        repository.close();
+        setWorkspaceLock(selection);
+        return;
+      }
+      accountRepository.current = repository;
+      workspaceId.current = selection.workspaceId;
+      workspacePersisted.current = selection.persisted;
+      stateRef.current = selection.state;
+      setS(selection.state);
+      setFocusMins(selection.state.settings.focusMinutes);
+    };
+    openWorkspace().catch((e) => { if (!cancelled) setLoadError(String(e.message || e)); });
+    return () => {
+      cancelled = true;
+      accountRepository.current?.close();
+      accountRepository.current = null;
+    };
+  }, [identity.status, identityUserId]);
+  useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
@@ -291,7 +339,18 @@ export default function App() {
         }
         try {
           const next = fn(stateRef.current);
-          await persistState(next);
+          if (workspaceId.current === "guest") await persistState(next);
+          else {
+            const repository = accountRepository.current;
+            if (!repository) throw new Error("Account workspace is not available.");
+            await repository.commit(
+              workspaceId.current,
+              workspacePersisted.current ? stateRef.current : null,
+              next,
+              [],
+            );
+            workspacePersisted.current = true;
+          }
           stateRef.current = next;
           setS(next);
           resolve(true);
@@ -374,6 +433,15 @@ export default function App() {
     window.addEventListener("tend-back", handler);
     return () => window.removeEventListener("tend-back", handler);
   }, [modal, page]);
+  if (workspaceLock)
+    return (
+      <div className="load-screen">
+        <Sprout />
+        <h1>{workspaceLock.reason === "identity-loading" ? "Checking your account…" : "Your account is locked."}</h1>
+        <p>{workspaceLock.reason === "identity-loading" ? "Your local data stays private while Tend verifies the session." : "Sign in again to unlock this account workspace. Guest data and other accounts remain separate."}</p>
+        {workspaceLock.reason === "session-expired" && <AuthControls />}
+      </div>
+    );
   if (loadError)
     return (
       <div className="load-screen">
