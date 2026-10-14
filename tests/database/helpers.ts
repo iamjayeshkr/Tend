@@ -9,6 +9,12 @@ export async function secureSyncMigration(): Promise<string> {
   return readFile(resolve(directory, files[0]!), 'utf8')
 }
 
+export async function syncMigrations(): Promise<string[]> {
+  const directory = resolve(process.cwd(), 'supabase/migrations')
+  const files = (await readdir(directory)).filter((name) => name.endsWith('.sql')).sort()
+  return Promise.all(files.map((name) => readFile(resolve(directory, name), 'utf8')))
+}
+
 export async function testDatabase(): Promise<PGlite> {
   const database = new PGlite()
   await database.exec(`
@@ -22,7 +28,7 @@ export async function testDatabase(): Promise<PGlite> {
       select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb
     $$;
   `)
-  await database.exec(await secureSyncMigration())
+  for (const migration of await syncMigrations()) await database.exec(migration)
   return database
 }
 
@@ -36,4 +42,8 @@ export async function asAnon(database: PGlite): Promise<void> {
 
 export async function asDatabaseOwner(database: PGlite): Promise<void> {
   await database.exec(`reset role; select set_config('request.jwt.claims', '{}', false);`)
+}
+
+export async function asServiceRole(database: PGlite): Promise<void> {
+  await database.exec(`reset role; select set_config('request.jwt.claims', '{}', false); set role service_role;`)
 }

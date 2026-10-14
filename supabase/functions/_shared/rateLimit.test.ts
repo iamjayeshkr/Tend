@@ -144,7 +144,7 @@ describe('shared rate limiting', () => {
   it('records only safe event codes, request ids, and pseudonymous identifiers', async () => {
     const store: RateLimitStore = { increment: async () => 999 }
     const events: unknown[] = []
-    await enforceRateLimit({ ...common, operation: 'push', store, audit: (event) => events.push(event) })
+    await enforceRateLimit({ ...common, operation: 'push', store, audit: (event) => { events.push(event) } })
 
     const logger = vi.fn()
     recordSecurityEvent(events[0] as Parameters<typeof recordSecurityEvent>[0], logger)

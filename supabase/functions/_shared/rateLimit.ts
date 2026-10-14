@@ -1,4 +1,4 @@
-import type { SecurityEvent } from './audit'
+import type { SecurityEvent } from './audit.ts'
 
 export type RateLimitOperation = 'pull' | 'push' | 'migration' | 'export' | 'revoke' | 'delete'
 export type RateLimitDimension = 'account' | 'ip' | 'device'
@@ -144,6 +144,19 @@ function normalizedIp(value: string): string {
   const isIpv6 = candidate.includes(':') && /^[0-9a-f:]+$/.test(candidate)
   if (!isIpv4 && !isIpv6) throw new Error('A normalized client IP is required.')
   return candidate
+}
+
+/**
+ * Read only at the Supabase Edge boundary, where the gateway owns and rewrites
+ * the X-Forwarded-For chain. Application code must pass the returned value,
+ * never a browser-supplied forwarding header, to the limiter.
+ */
+export function clientIpFromSupabaseGateway(request: Request): string {
+  const chain = request.headers.get('x-forwarded-for')
+  if (!chain) throw new Error('Supabase gateway client address is missing.')
+  const firstHop = chain.split(',', 1)[0]?.trim()
+  if (!firstHop) throw new Error('Supabase gateway client address is missing.')
+  return normalizedIp(firstHop)
 }
 
 async function bucketIdentity(input: EnforceRateLimitInput): Promise<BucketIdentity> {

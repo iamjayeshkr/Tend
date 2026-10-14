@@ -1,6 +1,6 @@
 import { createClerkClient } from '@clerk/backend'
 
-import { ApiFailure, requestIdFor } from './http'
+import { ApiFailure, requestIdFor } from './http.ts'
 
 type GatewayAuthState = {
   isAuthenticated: boolean

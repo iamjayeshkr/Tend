@@ -12,7 +12,7 @@ import type {
   TendCollection,
   ValidateMigrationRequest,
   ValidateMigrationResponse,
-} from './types'
+} from './types.ts'
 
 export const TEND_COLLECTIONS = [
   'tasks',
