@@ -6,6 +6,6 @@ export type TendIdentity =
       status: 'signedIn'
       cloudAvailable: true
       userId: string
-      getAccessToken: () => Promise<string | null>
+      getAccessToken: (options?: { forceRefresh?: boolean }) => Promise<string | null>
       signOut: () => Promise<void>
     }

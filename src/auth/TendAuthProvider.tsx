@@ -24,7 +24,7 @@ function ClerkIdentityBridge({ children }: { children: ReactNode }) {
       status: 'signedIn',
       cloudAvailable: true,
       userId,
-      getAccessToken: () => getToken(),
+      getAccessToken: ({ forceRefresh } = {}) => getToken(forceRefresh ? { skipCache: true } : undefined),
       signOut: async () => {
         verifiedUserId.current = null
         await clerk.signOut()
