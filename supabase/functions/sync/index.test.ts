@@ -13,6 +13,7 @@ function dependencies(overrides: Partial<SyncHandlerDependencies> = {}): SyncHan
     clientIp: vi.fn(() => '203.0.113.42'),
     limit: vi.fn(async () => ({ allowed: true, degraded: false, limit: 30, remaining: 29, headers: {} })),
     push: vi.fn(async () => ({ results: [] })),
+    pull: vi.fn(async () => ({ records: [], cursor: 'v1.opaque.cursor', hasMore: false })),
     logger: vi.fn(),
     ...overrides,
   }
@@ -51,6 +52,23 @@ describe('sync gateway composition', () => {
     expect(deps.push).toHaveBeenCalledOnce()
     expect(response.headers.get('access-control-allow-origin')).toBe(origin)
     expect(response.headers.get('cache-control')).toBe('no-store')
+  })
+
+  it('routes bounded GET pulls through pull rate limits without reading a body', async () => {
+    const deps = dependencies()
+    const request = new Request(`https://edge.tend.example/functions/v1/sync/pull?deviceId=${deviceId}&limit=100`, {
+      headers: {
+        authorization: 'Bearer token',
+        origin,
+        'x-forwarded-for': '203.0.113.42',
+        'x-request-id': 'request-123',
+      },
+    })
+    const response = await createSyncHandler(deps)(request)
+    expect(response.status).toBe(200)
+    expect(deps.limit).toHaveBeenCalledWith(expect.objectContaining({ operation: 'pull', deviceId }))
+    expect(deps.pull).toHaveBeenCalledWith(expect.anything(), { deviceId, limit: 100 })
+    expect(deps.push).not.toHaveBeenCalled()
   })
 
   it('stops before mutation when the shared limiter denies the request', async () => {
