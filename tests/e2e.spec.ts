@@ -101,6 +101,24 @@ test('guided first run leads to one task and a four-tab app', async ({ page }, t
   expect(errors).toEqual([]);
 });
 
+test('sync status keeps an offline guest task saved on this device', async ({ page, context }) => {
+  await openApp(page);
+  await finishSetup(page, '');
+  await expect(page.locator('.sync-status')).toHaveText('Saved on this device');
+
+  await context.setOffline(true);
+  await page.getByRole('button', { name: 'Add task', exact: true }).click();
+  await page.getByLabel('My intention', { exact: true }).fill('Written without a connection');
+  await page.getByRole('button', { name: 'Add to today', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Written without a connection', exact: true })).toBeVisible();
+  await expect(page.locator('.sync-status')).toHaveText('Saved on this device');
+  expect((await readState(page)).tasks).toEqual([
+    expect.objectContaining({ title: 'Written without a connection', done: false }),
+  ]);
+
+  await context.setOffline(false);
+});
+
 test('task focus pauses, recovers after reload, and saves the actual three minutes', async ({ page }) => {
   await openApp(page);
   await finishSetup(page);
@@ -221,11 +239,11 @@ test('backup export and restore retain the whole notebook; corrupt files leave i
   expect(exported.state.ideas[0].title).toBe('A page worth keeping');
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await page.getByLabel('Import backup file').setInputFiles({ name: 'broken.json', mimeType: 'application/json', buffer: Buffer.from('{"format":"tend-backup","schemaVersion":1,"state":{"version":99}}') });
-  await expect(page.getByRole('status')).toContainText('Backup not restored');
+  await expect(page.getByRole('status').filter({ hasText: 'Backup not restored' })).toBeVisible();
   expect(await readState(page)).toEqual(exported.state);
   // Recovery validation: a well-formed but future schema must be rejected without touching current data.
   await page.getByLabel('Import backup file').setInputFiles({ name: 'future.json', mimeType: 'application/json', buffer: Buffer.from(schema1InvalidBackups.unsupportedVersion) });
-  await expect(page.getByRole('status')).toContainText('Backup not restored');
+  await expect(page.getByRole('status').filter({ hasText: 'Backup not restored' })).toBeVisible();
   expect(await readState(page)).toEqual(exported.state);
   await restoreFile(page, exported.state);
   await page.reload();

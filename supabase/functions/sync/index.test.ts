@@ -12,6 +12,8 @@ function dependencies(overrides: Partial<SyncHandlerDependencies> = {}): SyncHan
     authenticate: vi.fn(async () => ({ ownerId: 'user_a', sessionId: 'session_a', requestId: 'request-123' })),
     clientIp: vi.fn(() => '203.0.113.42'),
     limit: vi.fn(async () => ({ allowed: true, degraded: false, limit: 30, remaining: 29, headers: {} })),
+    register: vi.fn(async () => ({ status: 'registered' as const })),
+    validateMigration: vi.fn(async () => ({ accepted: true, recordCount: 0, conflicts: [] })),
     push: vi.fn(async () => ({ results: [] })),
     pull: vi.fn(async () => ({ records: [], cursor: 'v1.opaque.cursor', hasMore: false })),
     logger: vi.fn(),
@@ -69,6 +71,29 @@ describe('sync gateway composition', () => {
     expect(deps.limit).toHaveBeenCalledWith(expect.objectContaining({ operation: 'pull', deviceId }))
     expect(deps.pull).toHaveBeenCalledWith(expect.anything(), { deviceId, limit: 100 })
     expect(deps.push).not.toHaveBeenCalled()
+  })
+
+  it('routes device registration and migration validation through authenticated limits', async () => {
+    const deps = dependencies()
+    const headers = {
+      authorization: 'Bearer token', 'content-type': 'application/json', origin,
+      'x-forwarded-for': '203.0.113.42', 'x-request-id': 'request-123',
+    }
+    const registration = new Request('https://edge.tend.example/functions/v1/sync/device/register', {
+      method: 'POST', headers,
+      body: JSON.stringify({ deviceId, name: 'Browser', platform: 'web', appVersion: '1.1.14' }),
+    })
+    const migration = new Request('https://edge.tend.example/functions/v1/sync/migration/validate', {
+      method: 'POST', headers,
+      body: JSON.stringify({ deviceId, dryRun: true, operations: [] }),
+    })
+
+    await expect(createSyncHandler(deps)(registration).then((response) => response.json())).resolves.toEqual({ status: 'registered' })
+    await expect(createSyncHandler(deps)(migration).then((response) => response.json())).resolves.toEqual({ accepted: true, recordCount: 0, conflicts: [] })
+    expect(deps.register).toHaveBeenCalledWith(expect.anything(), { deviceId, name: 'Browser', platform: 'web', appVersion: '1.1.14' })
+    expect(deps.validateMigration).toHaveBeenCalledWith(expect.anything(), { deviceId, dryRun: true, operations: [] })
+    expect(deps.limit).toHaveBeenNthCalledWith(1, expect.objectContaining({ operation: 'push', deviceId }))
+    expect(deps.limit).toHaveBeenNthCalledWith(2, expect.objectContaining({ operation: 'migration', deviceId }))
   })
 
   it('stops before mutation when the shared limiter denies the request', async () => {

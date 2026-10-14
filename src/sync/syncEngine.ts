@@ -3,7 +3,7 @@ import { defaultState, type AppState } from '../core'
 import type { AcknowledgeResult, LocalRepository, WorkspaceMetadata } from '../data/localRepository'
 import { GatewayError, type SyncGateway } from './gatewayClient'
 import { recordKey, recordsToState } from './recordAdapter'
-import type { PullResponse, RemoteRecord, SyncOperation } from './types'
+import type { DeviceRegistration, PullResponse, RemoteRecord, SyncOperation } from './types'
 
 const PUSH_BATCH_SIZE = 100
 const PULL_PAGE_SIZE = 500
@@ -42,6 +42,7 @@ export type SyncEngineOptions = {
   deviceId: string
   repository: SyncRepository
   gateway: SyncGateway
+  registration?: DeviceRegistration
   network?: SyncEngineNetwork
   scheduler?: SyncEngineScheduler
   random?: () => number
@@ -114,6 +115,7 @@ export class SyncEngine {
   private retryTimer: unknown | null = null
   private activeController: AbortController | null = null
   private currentRun: Promise<void> | null = null
+  private deviceRegistered = false
 
   constructor(private readonly options: SyncEngineOptions) {
     this.network = options.network ?? browserNetwork()
@@ -146,10 +148,18 @@ export class SyncEngine {
     this.started = true
     this.unsubscribeNetwork = this.network.subscribe(() => {
       if (!this.network.isOnline()) {
+        this.activeController?.abort()
         this.update({ status: 'offline', nextRetryAt: undefined })
         return
       }
-      void this.syncNow()
+      const activeRun = this.currentRun
+      if (activeRun) {
+        void activeRun.finally(() => {
+          if (this.started && this.network.isOnline()) void this.syncNow()
+        })
+      } else {
+        void this.syncNow()
+      }
     })
     if (!this.network.isOnline()) {
       this.update({ status: 'offline' })
@@ -202,6 +212,10 @@ export class SyncEngine {
   }
 
   private async runCycle(signal: AbortSignal): Promise<void> {
+    if (this.options.registration && !this.deviceRegistered) {
+      await this.options.gateway.registerDevice(this.options.registration, { signal })
+      this.deviceRegistered = true
+    }
     await this.pushPending(signal)
     await this.pullIncremental(signal)
   }
@@ -309,7 +323,10 @@ export class SyncEngine {
 
   private handleFailure(error: unknown, signal: AbortSignal): void {
     if (signal.aborted || (error instanceof GatewayError && error.code === 'CANCELLED')) {
-      this.update({ status: this.started ? 'idle' : 'stopped', nextRetryAt: undefined })
+      this.update({
+        status: !this.started ? 'stopped' : this.network.isOnline() ? 'idle' : 'offline',
+        nextRetryAt: undefined,
+      })
       return
     }
 

@@ -20,7 +20,7 @@ const environment = readPublicEnvironment({
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <TendAuthProvider environment={environment}>
-      <App/>
+      <App environment={environment}/>
     </TendAuthProvider>
   </React.StrictMode>,
 );

@@ -42,6 +42,8 @@ import {
   Timer,
   Flag,
   StopCircle,
+  Cloud,
+  CloudOff,
 } from "lucide-react";
 import {
   defaultState,
@@ -74,6 +76,10 @@ import { AuthControls } from "./auth/AuthControls";
 import { useTendIdentity } from "./auth/TendAuthProvider";
 import { LocalRepository } from "./data/localRepository";
 import { WorkspaceManager, type WorkspaceSelection } from "./data/workspaceManager";
+import type { PublicEnvironment } from "./security/env";
+import { SyncStatus } from "./sync/SyncStatus";
+import { deviceIdFor } from "./sync/deviceIdentity";
+import type { SyncEngine as SyncEngineType, SyncState } from "./sync/syncEngine";
 const native = () => (window as any).AndroidBridge;
 const categories: Category[] = [
   "study",
@@ -113,6 +119,7 @@ type Modal =
   | "backup"
   | "activity"
   | "bored"
+  | "signout"
   | null;
 const navItems: {
   id: Page;
@@ -193,7 +200,7 @@ function Toggle({
     </button>
   );
 }
-export default function App() {
+export default function App({ environment }: { environment: PublicEnvironment }) {
   const identity = useTendIdentity();
   const [s, setS] = useState<AppState | null>(null),
     stateRef = useRef<AppState | null>(null),
@@ -207,6 +214,9 @@ export default function App() {
   const [showGuide, setShowGuide] = useState(false);
   const [workspaceLock, setWorkspaceLock] = useState<Extract<WorkspaceSelection, {kind:"locked"}> | null>(null);
   const accountRepository = useRef<LocalRepository | null>(null);
+  const syncEngine = useRef<SyncEngineType | null>(null);
+  const syncSubscription = useRef<(() => void) | null>(null);
+  const [syncState, setSyncState] = useState<SyncState>({status:"stopped",pendingCount:0,attempt:0});
   const workspaceId = useRef("guest");
   const workspacePersisted = useRef(true);
   const [focusTab,setFocusTab] = useState<"timer"|"shield">("timer");
@@ -244,6 +254,11 @@ export default function App() {
     setWorkspaceLock(null);
     const openWorkspace = async () => {
       await queue.current.catch(() => undefined);
+      syncEngine.current?.stop();
+      syncEngine.current = null;
+      syncSubscription.current?.();
+      syncSubscription.current = null;
+      setSyncState({status:"stopped",pendingCount:0,attempt:0});
       accountRepository.current?.close();
       accountRepository.current = null;
       if (identity.status === "loading") {
@@ -274,10 +289,48 @@ export default function App() {
       stateRef.current = selection.state;
       setS(selection.state);
       setFocusMins(selection.state.settings.focusMinutes);
+      if (identity.status === "signedIn" && environment.cloud && repository.capabilities.durableQueue) {
+        const [{ createSyncGateway }, { SyncEngine }] = await Promise.all([
+          import("./sync/gatewayClient"),
+          import("./sync/syncEngine"),
+        ]);
+        if (cancelled || accountRepository.current !== repository) return;
+        const deviceId = deviceIdFor();
+        const gateway = createSyncGateway({
+          baseUrl: new URL("functions/v1/sync", environment.cloud.supabaseUrl).toString(),
+          getAccessToken: identity.getAccessToken,
+        });
+        const engine = new SyncEngine({
+          identity,
+          workspaceId: selection.workspaceId,
+          deviceId,
+          repository,
+          gateway,
+          registration: {
+            deviceId,
+            name: native() ? "Tend desktop" : "Tend browser",
+            platform: native() ? "desktop" : "web",
+            appVersion: "1.1.14",
+          },
+          onWorkspaceUpdated: (next) => {
+            if (cancelled || workspaceId.current !== selection.workspaceId) return;
+            workspacePersisted.current = true;
+            stateRef.current = next;
+            setS(next);
+          },
+        });
+        syncEngine.current = engine;
+        syncSubscription.current = engine.subscribe(setSyncState);
+        engine.start();
+      }
     };
     openWorkspace().catch((e) => { if (!cancelled) setLoadError(String(e.message || e)); });
     return () => {
       cancelled = true;
+      syncEngine.current?.stop();
+      syncEngine.current = null;
+      syncSubscription.current?.();
+      syncSubscription.current = null;
       accountRepository.current?.close();
       accountRepository.current = null;
     };
@@ -338,21 +391,43 @@ export default function App() {
           return;
         }
         try {
-          const next = fn(stateRef.current);
+          let previous = stateRef.current;
+          let next = fn(previous);
           if (workspaceId.current === "guest") await persistState(next);
           else {
             const repository = accountRepository.current;
             if (!repository) throw new Error("Account workspace is not available.");
-            await repository.commit(
-              workspaceId.current,
-              workspacePersisted.current ? stateRef.current : null,
-              next,
-              [],
-            );
-            workspacePersisted.current = true;
+            for (let attempt = 0; attempt < 3; attempt += 1) {
+              const metadata = await repository.loadMetadata(workspaceId.current);
+              const { diffRecords, stateToRecords } = await import("./sync/recordAdapter");
+              const operations = diffRecords(stateToRecords(previous), stateToRecords(next), {
+                changedAt: new Date().toISOString(),
+                operationId: () => uid(),
+                baseRevisions: new Map(Object.entries(metadata.revisions)),
+              }).filter((operation) => operation.collection === "tasks");
+              try {
+                await repository.commit(
+                  workspaceId.current,
+                  workspacePersisted.current ? previous : null,
+                  next,
+                  operations,
+                );
+                workspacePersisted.current = true;
+                break;
+              } catch (error) {
+                const changedElsewhere = error instanceof Error && /changed in another writer/i.test(error.message);
+                if (!changedElsewhere || attempt === 2) throw error;
+                const latest = await repository.loadWorkspace(workspaceId.current);
+                if (!latest) throw error;
+                previous = latest;
+                next = fn(previous);
+                workspacePersisted.current = true;
+              }
+            }
           }
           stateRef.current = next;
           setS(next);
+          void syncEngine.current?.syncNow();
           resolve(true);
         } catch (e) {
           notify(
@@ -621,6 +696,22 @@ export default function App() {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     notify("Your journal is ready to keep somewhere safe.");
   };
+  const finishAccountSignOut = async () => {
+    if (identity.status !== "signedIn") return;
+    syncEngine.current?.stop();
+    await identity.signOut();
+  };
+  const requestAccountSignOut = async () => {
+    if (identity.status !== "signedIn") return;
+    const repository = accountRepository.current;
+    if (!repository) return;
+    const preparation = await new WorkspaceManager(repository).prepareSignOut(identity.userId);
+    if (preparation.status === "requiresSyncOrExport") {
+      setModal("signout");
+      return;
+    }
+    await finishAccountSignOut();
+  };
   const alarmSync = (state: AppState) => {
     if (!native()) return;
     if (state.settings.notifications) {
@@ -739,6 +830,7 @@ export default function App() {
     backup: "Bring your journal home.",
     activity: "The real story.",
     bored: "A little space to just be.",
+    signout: "Keep every change safe.",
   };
   const selectedReview = s.reviews.find((r) => r.date === today);
   if (!s.onboarded || showGuide) return <Welcome settings={s.settings} onCancel={s.onboarded?()=>setShowGuide(false):undefined} onFinish={async(settings,intention)=>{const ok=await commit(v=>({...v,onboarded:true,settings,tasks:intention?[...v.tasks,{id:uid(),title:intention,done:false,date:today,category:"study" as Category}]:v.tasks}));if(ok){setShowGuide(false);setFocusMins(settings.focusMinutes);go("today");if(stateRef.current)alarmSync(stateRef.current);}return ok;}}/>;
@@ -801,6 +893,7 @@ export default function App() {
           </button>
           <div className="breadcrumb">A day of your own <span>/</span> {page === "rhythm" ? "Daily rhythm" : page === "reflect" ? "Reflections" : navItems.find(n=>n.id===page)?.label}</div>
           <div className="top-actions">
+            {page !== "notebook" && <SyncStatus cloudEnabled={identity.status === "signedIn"} state={syncState} compact />}
             <span className="date-label">
               <CalendarDays size={15} />
               {new Date(now).toLocaleDateString("en", {
@@ -821,7 +914,7 @@ export default function App() {
         <main>
           {!["today","notebook"].includes(page)&&<div className="page-heading"><div>{["rhythm","reflect"].includes(page)&&<button className="back-to-space" onClick={()=>go("you")}><ChevronLeft size={17}/>You</button>}<Pill>{headerCopy[page].label}</Pill><h1>{headerCopy[page].title}</h1><p>{headerCopy[page].subtitle}</p></div></div>}
           {page === "today" && <TodayPage state={s} now={now} commit={commit} onFocus={openFocus} onTask={()=>setModal("task")} onReview={()=>{setMood(selectedReview?.mood||3);setModal("review")}} onRhythm={()=>{setFilter("plan");go("rhythm")}} onLog={openLog} onWorkout={()=>{setSetCount(0);setModal("workout")}} onWake={()=>quickLife("wake")} onBored={()=>setModal("bored")} onGuide={()=>setShowGuide(true)}/>}
-          {page === "you" && <><AuthControls/><YourSpace state={s} onRhythm={()=>{setFilter("plan");go("rhythm")}} onReflect={()=>go("reflect")} onLog={()=>{setFilter("actual");go("rhythm")}} onSettings={()=>setModal("settings")} onGuide={()=>setShowGuide(true)} onShield={()=>{go("focus");setFocusTab("shield")}}/></>}
+          {page === "you" && <><AuthControls onSignOut={requestAccountSignOut}/><YourSpace state={s} onRhythm={()=>{setFilter("plan");go("rhythm")}} onReflect={()=>go("reflect")} onLog={()=>{setFilter("actual");go("rhythm")}} onSettings={()=>setModal("settings")} onGuide={()=>setShowGuide(true)} onShield={()=>{go("focus");setFocusTab("shield")}}/></>}
           {page === "rhythm" && (
             <>
               <div className="page-toolbar">
@@ -1424,6 +1517,65 @@ export default function App() {
             </div>
             <h2 id="modal-title">{modalTitles[modal]}</h2>
             {formError&&<p className="form-error" role="alert">{formError}</p>}
+            {modal === "signout" && (
+              <div>
+                <p className="modal-intro">
+                  Some changes are still waiting to sync. Tend will not discard them or hide them behind sign-out.
+                </p>
+                <div className="signout-safety" role="status">
+                  <CloudOff size={20} aria-hidden="true" />
+                  <span>Your latest changes are still saved on this device.</span>
+                </div>
+                <button
+                  className="primary full"
+                  type="button"
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true);
+                    setFormError("");
+                    try {
+                      await syncEngine.current?.syncNow();
+                      if (identity.status !== "signedIn" || !accountRepository.current) return;
+                      const result = await new WorkspaceManager(accountRepository.current).prepareSignOut(identity.userId);
+                      if (result.status !== "ready") {
+                        setFormError("Those changes are still waiting. Reconnect and try again, or export a recovery copy.");
+                        return;
+                      }
+                      setModal(null);
+                      await finishAccountSignOut();
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  <Cloud size={17} aria-hidden="true" />
+                  {busy ? "Syncing safely…" : "Sync now, then sign out"}
+                </button>
+                <button
+                  className="outline full"
+                  type="button"
+                  disabled={busy}
+                  onClick={async () => {
+                    if (!accountRepository.current) return;
+                    setBusy(true);
+                    try {
+                      exportBackup();
+                      await accountRepository.current.saveRecoverySnapshot(workspaceId.current, s);
+                      setModal(null);
+                      await finishAccountSignOut();
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  <Download size={17} aria-hidden="true" />
+                  Export recovery copy and sign out
+                </button>
+                <button className="text-button centered" type="button" onClick={() => setModal(null)}>
+                  Stay signed in
+                </button>
+              </div>
+            )}
             {(modal === "setup" || modal === "settings") && (
               <form
                 onSubmit={(e) =>

@@ -15,7 +15,7 @@
     "test:auth": "playwright test tests/auth",
     "test:database": "vitest run tests/database --passWithNoTests",
     "test:security": "vitest run supabase/functions scripts/verify-security.test.mjs --passWithNoTests",
-    "test:sync": "vitest run src/sync --passWithNoTests",
+    "test:sync": "vitest run src/sync tests/sync --passWithNoTests",
     "test:unit": "vitest run src",
     "typecheck": "tsc -b",
     "verify:assets": "node scripts/verify-assets.mjs dist/index.html dist",

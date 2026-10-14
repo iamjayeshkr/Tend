@@ -4,7 +4,7 @@ import { useState } from 'react'
 
 import { useTendIdentity } from './TendAuthProvider'
 
-export function AuthControls() {
+export function AuthControls({ onSignOut }: { onSignOut?: () => Promise<void> }) {
   const identity = useTendIdentity()
   const [signingOut, setSigningOut] = useState(false)
 
@@ -50,7 +50,7 @@ export function AuthControls() {
   const handleSignOut = async () => {
     setSigningOut(true)
     try {
-      await identity.signOut()
+      await (onSignOut ? onSignOut() : identity.signOut())
     } finally {
       setSigningOut(false)
     }

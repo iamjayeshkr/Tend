@@ -4,6 +4,12 @@
 # working directory name when running `supabase init`.
 project_id = "PARA_SF_copy"
 
+[functions.sync]
+# Clerk bearer tokens are verified inside the function against the pinned Clerk
+# issuer, audience, authorized-party list, and public key. Supabase's own JWT
+# verifier cannot validate these third-party sessions.
+verify_jwt = false
+
 [api]
 enabled = true
 # Port to use for the API URL.

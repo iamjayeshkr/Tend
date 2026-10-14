@@ -1,8 +1,21 @@
 import { Redis } from '@upstash/redis'
 import { createClient } from '@supabase/supabase-js'
 
-import { parsePullRequest, parsePushRequest } from '../../../src/sync/schemas.ts'
-import type { PullRequest, PullResponse, PushRequest, PushResponse } from '../../../src/sync/types.ts'
+import {
+  parseDeviceRegistration,
+  parsePullRequest,
+  parsePushRequest,
+  parseValidateMigrationRequest,
+} from '../../../src/sync/schemas.ts'
+import type {
+  DeviceRegistration,
+  PullRequest,
+  PullResponse,
+  PushRequest,
+  PushResponse,
+  ValidateMigrationRequest,
+  ValidateMigrationResponse,
+} from '../../../src/sync/types.ts'
 import { authenticateRequest, type GatewayAuthConfig, type VerifiedPrincipal } from '../_shared/auth.ts'
 import { recordSecurityEvent } from '../_shared/audit.ts'
 import { createSyncDatabase, type SupabaseRpcClient } from '../_shared/database.ts'
@@ -13,13 +26,14 @@ import {
   jsonResponse,
   readJsonBody,
 } from '../_shared/http.ts'
-import { pushOperations } from '../_shared/pushService.ts'
+import { pushOperations, registerDevice, validateMigration } from '../_shared/pushService.ts'
 import { pullChanges } from '../_shared/pullService.ts'
 import {
   clientIpFromSupabaseGateway,
   createUpstashRateLimitStore,
   enforceRateLimit,
   type RateLimitDecision,
+  type RateLimitOperation,
   type RedisEvalClient,
 } from '../_shared/rateLimit.ts'
 
@@ -29,7 +43,7 @@ type LimitInput = {
   principal: VerifiedPrincipal
   deviceId: string
   clientIp: string
-  operation: 'pull' | 'push'
+  operation: RateLimitOperation
 }
 
 export type SyncHandlerDependencies = {
@@ -37,6 +51,8 @@ export type SyncHandlerDependencies = {
   authenticate(request: Request): Promise<VerifiedPrincipal>
   clientIp(request: Request): string
   limit(input: LimitInput): Promise<RateLimitDecision>
+  register(principal: VerifiedPrincipal, request: DeviceRegistration): Promise<{ status: 'registered' | 'active' }>
+  validateMigration(principal: VerifiedPrincipal, request: ValidateMigrationRequest): Promise<ValidateMigrationResponse>
   push(principal: VerifiedPrincipal, request: PushRequest): Promise<PushResponse>
   pull(principal: VerifiedPrincipal, request: PullRequest): Promise<PullResponse>
   logger?: (entry: {
@@ -62,6 +78,14 @@ function isPushPath(pathname: string): boolean {
 
 function isPullPath(pathname: string): boolean {
   return pathname === '/sync/pull' || pathname.endsWith('/functions/v1/sync/pull')
+}
+
+function isRegistrationPath(pathname: string): boolean {
+  return pathname === '/sync/device/register' || pathname.endsWith('/functions/v1/sync/device/register')
+}
+
+function isMigrationPath(pathname: string): boolean {
+  return pathname === '/sync/migration/validate' || pathname.endsWith('/functions/v1/sync/migration/validate')
 }
 
 function parsedPullRequest(url: URL): PullRequest {
@@ -94,21 +118,27 @@ export function createSyncHandler(dependencies: SyncHandlerDependencies) {
       const url = new URL(request.url)
       const pushRoute = isPushPath(url.pathname)
       const pullRoute = isPullPath(url.pathname)
-      if (!pushRoute && !pullRoute) {
+      const registrationRoute = isRegistrationPath(url.pathname)
+      const migrationRoute = isMigrationPath(url.pathname)
+      if (!pushRoute && !pullRoute && !registrationRoute && !migrationRoute) {
         throw new ApiFailure(404, 'NOT_FOUND', 'The requested synchronization endpoint does not exist.')
       }
-      const expectedMethod = pushRoute ? 'POST' : 'GET'
+      const expectedMethod = pullRoute ? 'GET' : 'POST'
       if (request.method !== expectedMethod) {
         throw new ApiFailure(405, 'METHOD_NOT_ALLOWED', `This endpoint requires ${expectedMethod}.`, { Allow: expectedMethod })
       }
 
       // Authentication intentionally precedes body reads and parsing.
       const principal = await dependencies.authenticate(request)
-      let syncRequest: PushRequest | PullRequest
-      if (pushRoute) {
+      let syncRequest: PushRequest | PullRequest | DeviceRegistration | ValidateMigrationRequest
+      if (!pullRoute) {
         const rawBody = await readJsonBody(request, MAX_PUSH_BODY_BYTES)
         try {
-          syncRequest = parsePushRequest(rawBody)
+          syncRequest = pushRoute
+            ? parsePushRequest(rawBody)
+            : registrationRoute
+              ? parseDeviceRegistration(rawBody)
+              : parseValidateMigrationRequest(rawBody)
         } catch {
           throw new ApiFailure(422, 'VALIDATION_FAILED', 'The synchronization request is invalid.')
         }
@@ -127,7 +157,7 @@ export function createSyncHandler(dependencies: SyncHandlerDependencies) {
         principal,
         deviceId: syncRequest.deviceId,
         clientIp,
-        operation: pushRoute ? 'push' : 'pull',
+        operation: migrationRoute ? 'migration' : pullRoute ? 'pull' : 'push',
       })
       if (!decision.allowed) {
         throw new ApiFailure(
@@ -142,7 +172,11 @@ export function createSyncHandler(dependencies: SyncHandlerDependencies) {
 
       const response = pushRoute
         ? await dependencies.push(principal, syncRequest as PushRequest)
-        : await dependencies.pull(principal, syncRequest as PullRequest)
+        : pullRoute
+          ? await dependencies.pull(principal, syncRequest as PullRequest)
+          : registrationRoute
+            ? await dependencies.register(principal, syncRequest as DeviceRegistration)
+            : await dependencies.validateMigration(principal, syncRequest as ValidateMigrationRequest)
       return jsonResponse(response, {
         status: 200,
         requestId: principal.requestId,
@@ -219,6 +253,8 @@ function runtimeHandler(env: EdgeRuntime['env']) {
       store: rateStore,
       audit: (event) => recordSecurityEvent(event),
     }),
+    register: (principal, request) => registerDevice({ principal, database }, request),
+    validateMigration: (principal, request) => validateMigration({ principal, database }, request),
     push: (principal, request) => pushOperations({ principal, database }, request),
     pull: (principal, request) => pullChanges({ principal, database, cursorSecret }, request),
     logger: (entry) => console.error(JSON.stringify(entry)),

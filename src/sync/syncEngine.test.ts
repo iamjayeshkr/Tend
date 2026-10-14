@@ -78,6 +78,22 @@ class MemoryRepository implements SyncRepository {
 }
 
 describe('SyncEngine durability', () => {
+  it('registers the installation before its first pull and reuses that registration', async () => {
+    const repository = new MemoryRepository()
+    const calls: string[] = []
+    const syncGateway = gateway({
+      registerDevice: vi.fn(async () => { calls.push('register'); return { status: 'registered' as const } }),
+      pull: vi.fn(async () => { calls.push('pull'); return { records: [], cursor: 'cursor-1', hasMore: false } }),
+    })
+    const engine = new SyncEngine(engineOptions(repository, syncGateway, {
+      registration: { deviceId, name: 'Browser', platform: 'web', appVersion: '1.1.14' },
+    }))
+
+    await engine.syncNow()
+    await engine.syncNow()
+    expect(calls).toEqual(['register', 'pull', 'pull'])
+  })
+
   it('pushes an already-durable local queue before pulling and acknowledges it atomically', async () => {
     const repository = await LocalRepository.open({ indexedDB: new IDBFactory() })
     const state = defaultState()
@@ -228,6 +244,38 @@ describe('SyncEngine scheduling', () => {
     online = true
     notify()
     await vi.waitFor(() => expect(syncGateway.pull).toHaveBeenCalledOnce())
+  })
+
+  it('cancels an in-flight request when connectivity drops and resumes after reconnect', async () => {
+    const repository = new MemoryRepository()
+    let online = true
+    let notify: () => void = () => undefined
+    let pullAttempt = 0
+    const pull = vi.fn((_request: unknown, options?: { signal?: AbortSignal }): Promise<PullResponse> => {
+      pullAttempt += 1
+      if (pullAttempt > 1) return Promise.resolve({ records: [], cursor: 'cursor-1', hasMore: false })
+      return new Promise((_resolve, reject) => {
+        options?.signal?.addEventListener('abort', () => {
+          reject(new GatewayError({ code: 'CANCELLED', retryable: false }))
+        }, { once: true })
+      })
+    })
+    const engine = new SyncEngine(engineOptions(repository, gateway({ pull }), {
+      network: {
+        isOnline: () => online,
+        subscribe: (listener: () => void) => { notify = listener; return () => undefined },
+      },
+    }))
+
+    engine.start()
+    await vi.waitFor(() => expect(pull).toHaveBeenCalledOnce())
+    online = false
+    notify()
+    await vi.waitFor(() => expect(engine.getState().status).toBe('offline'))
+    online = true
+    notify()
+    await vi.waitFor(() => expect(pull).toHaveBeenCalledTimes(2))
+    await vi.waitFor(() => expect(engine.getState().status).toBe('idle'))
   })
 
   it.each([
