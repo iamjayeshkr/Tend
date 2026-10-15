@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   ArrowRight,
   ArrowUpRight,
@@ -47,6 +47,7 @@ export function LandingPage({
 }: LandingPageProps) {
   const identity = useTendIdentity()
   const [signingOut, setSigningOut] = useState(false)
+  const [isScrolled, setIsScrolled] = useState(false)
 
   const handleSignOut = async () => {
     setSigningOut(true)
@@ -61,11 +62,121 @@ export function LandingPage({
     }
   }
 
+  // Header scroll shadow & blur state
+  useEffect(() => {
+    const onScroll = () => {
+      setIsScrolled(window.scrollY > 20)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    onScroll()
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // Viewport scroll reveal system
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (prefersReducedMotion) {
+      document.querySelectorAll('.reveal-on-scroll').forEach((el) => {
+        el.classList.add('is-revealed')
+      })
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-revealed')
+            observer.unobserve(entry.target)
+          }
+        })
+      },
+      {
+        threshold: 0.12,
+        rootMargin: '0px 0px -40px 0px',
+      }
+    )
+
+    const elements = document.querySelectorAll('.reveal-on-scroll')
+    elements.forEach((el) => observer.observe(el))
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
+
+  // Interactive 3D Card Tilt & Cursor Spotlight
+  const handleCardMouseMove = (e: React.MouseEvent<HTMLElement>) => {
+    const card = e.currentTarget
+    const rect = card.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    const centerX = rect.width / 2
+    const centerY = rect.height / 2
+    const tiltX = ((y - centerY) / centerY) * -4.5
+    const tiltY = ((x - centerX) / centerX) * 4.5
+
+    card.style.setProperty('--card-x', `${x}px`)
+    card.style.setProperty('--card-y', `${y}px`)
+    card.style.setProperty('--tilt-x', `${tiltX.toFixed(2)}deg`)
+    card.style.setProperty('--tilt-y', `${tiltY.toFixed(2)}deg`)
+    card.style.setProperty('--card-active', '1')
+  }
+
+  const handleCardMouseLeave = (e: React.MouseEvent<HTMLElement>) => {
+    const card = e.currentTarget
+    card.style.setProperty('--tilt-x', '0deg')
+    card.style.setProperty('--tilt-y', '0deg')
+    card.style.setProperty('--card-active', '0')
+  }
+
+  // Hero subtle parallax
+  const handleHeroMouseMove = (e: React.MouseEvent<HTMLElement>) => {
+    const hero = e.currentTarget
+    const rect = hero.getBoundingClientRect()
+    const x = (e.clientX - rect.left) / rect.width - 0.5
+    const y = (e.clientY - rect.top) / rect.height - 0.5
+    hero.style.setProperty('--hero-px', `${(x * 14).toFixed(2)}px`)
+    hero.style.setProperty('--hero-py', `${(y * 14).toFixed(2)}px`)
+  }
+
+  const handleHeroMouseLeave = (e: React.MouseEvent<HTMLElement>) => {
+    const hero = e.currentTarget
+    hero.style.setProperty('--hero-px', '0px')
+    hero.style.setProperty('--hero-py', '0px')
+  }
+
   // Interactive Hero Demo State
   const [demoChecked, setDemoChecked] = useState(false)
   const [demoTimerRunning, setDemoTimerRunning] = useState(false)
   const [demoSecondsLeft, setDemoSecondsLeft] = useState(25 * 60)
   const [activeFeatureTab, setActiveFeatureTab] = useState<'shield' | 'wake' | 'notebook' | 'sync'>('shield')
+
+  // Interactive Android phone mockup widget state
+  const [phoneTasks, setPhoneTasks] = useState([
+    { id: 1, text: 'Morning movement logged', done: true },
+    { id: 2, text: 'Write systems paper draft', done: false },
+  ])
+  const [phoneTaskCount, setPhoneTaskCount] = useState(0)
+
+  const togglePhoneTask = (id: number) => {
+    setPhoneTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t))
+    )
+  }
+
+  const handleAddPhoneTask = () => {
+    if (phoneTaskCount >= 2) return
+    const titles = ['Tend to evening reflection', 'Guard 60m awake boundary']
+    const newId = Date.now()
+    setPhoneTasks((prev) => [
+      ...prev,
+      { id: newId, text: titles[phoneTaskCount % titles.length], done: false },
+    ])
+    setPhoneTaskCount((c) => c + 1)
+  }
 
   useEffect(() => {
     let interval: any = null
@@ -95,7 +206,7 @@ export function LandingPage({
       </div>
 
       {/* Navigation Header */}
-      <header className="landing-nav" role="banner">
+      <header className={`landing-nav ${isScrolled ? 'is-scrolled' : ''}`} role="banner">
         <div className="landing-nav-inner">
           <div className="landing-brand" onClick={onLaunchApp} role="button" tabIndex={0}>
             <Sprout className="brand-sprout" />
@@ -153,16 +264,30 @@ export function LandingPage({
       </header>
 
       {/* Hero Section */}
-      <section className="landing-hero" aria-labelledby="hero-heading">
+      <section
+        className="landing-hero"
+        aria-labelledby="hero-heading"
+        onMouseMove={handleHeroMouseMove}
+        onMouseLeave={handleHeroMouseLeave}
+      >
+        <div className="hero-parallax-bg" aria-hidden="true">
+          <SunDoodle className="hero-doodle hero-doodle-sun" />
+          <Star className="hero-doodle hero-doodle-star" />
+        </div>
+
         <div className="landing-hero-content">
           <div className="hero-eyebrow-badge">
             <Leaf size={15} />
             <span>SELF-AUTHORIZED DISCIPLINE & FOCUS</span>
           </div>
 
-          <h1 id="hero-heading" className="hero-headline">
-            Make space for <em>what matters.</em><br />
-            Hold the line when <em>impulses strike.</em>
+          <h1 id="hero-heading" className="hero-headline hero-enter-stagger">
+            <span className="hero-headline-line line-1">
+              Make space for <em>what matters.</em>
+            </span>
+            <span className="hero-headline-line line-2">
+              Hold the line when <em>impulses strike.</em>
+            </span>
           </h1>
 
           <p className="hero-description">
@@ -216,7 +341,11 @@ export function LandingPage({
 
         {/* Live Interactive Hero Demo Card */}
         <div className="landing-hero-demo-wrapper">
-          <div className="hero-demo-card">
+          <div
+            className="hero-demo-card interactive-tilt-card"
+            onMouseMove={handleCardMouseMove}
+            onMouseLeave={handleCardMouseLeave}
+          >
             <div className="demo-card-header">
               <div className="demo-header-pill">
                 <i className="live-pulse" />
@@ -294,7 +423,7 @@ export function LandingPage({
 
       {/* Core Philosophy Section: The Antidote to Passive Habit Trackers */}
       <section id="philosophy" className="landing-philosophy-section" aria-labelledby="philosophy-heading">
-        <div className="section-header">
+        <div className="section-header reveal-on-scroll reveal-fade-up">
           <span className="eyebrow">THE OPERATING PHILOSOPHY</span>
           <h2 id="philosophy-heading">
             Tend does not ask if you did your task.<br />
@@ -306,32 +435,32 @@ export function LandingPage({
           </p>
         </div>
 
-        <div className="philosophy-loop-container">
-          <div className="loop-step">
+        <div className="philosophy-loop-container reveal-on-scroll reveal-fade-up">
+          <div className="loop-step step-1">
             <span className="step-num">01</span>
             <div className="step-content">
               <strong>Commit Deliberately</strong>
               <p>Choose one vital mission while thinking clearly. Define the strict boundaries before the morning starts.</p>
             </div>
           </div>
-          <div className="loop-arrow">→</div>
-          <div className="loop-step">
+          <div className="loop-arrow" aria-hidden="true">→</div>
+          <div className="loop-step step-2">
             <span className="step-num">02</span>
             <div className="step-content">
               <strong>Self-Authorized Shield</strong>
               <p>When the session starts, selected time-sinks are locked. You agreed to this wall when you were rational.</p>
             </div>
           </div>
-          <div className="loop-arrow">→</div>
-          <div className="loop-step">
+          <div className="loop-arrow" aria-hidden="true">→</div>
+          <div className="loop-step step-3">
             <span className="step-num">03</span>
             <div className="step-content">
               <strong>Confirmed Awake Guard</strong>
               <p>Your morning is guarded for 60 minutes of real awake time. Resleep is accounted for; early checks don’t waste it.</p>
             </div>
           </div>
-          <div className="loop-arrow">→</div>
-          <div className="loop-step">
+          <div className="loop-arrow" aria-hidden="true">→</div>
+          <div className="loop-step step-4">
             <span className="step-num">04</span>
             <div className="step-content">
               <strong>Prove & Reflect</strong>
@@ -340,8 +469,12 @@ export function LandingPage({
           </div>
         </div>
 
-        <div className="philosophy-cards-grid">
-          <div className="philosophy-card">
+        <div className="philosophy-cards-grid reveal-on-scroll reveal-stagger">
+          <div
+            className="philosophy-card interactive-tilt-card"
+            onMouseMove={handleCardMouseMove}
+            onMouseLeave={handleCardMouseLeave}
+          >
             <div className="card-stamp"><Shield size={20} /><span>STRICT MODE</span></div>
             <h3>Self-Authorized, Not Authoritarian</h3>
             <p>
@@ -349,7 +482,11 @@ export function LandingPage({
             </p>
           </div>
 
-          <div className="philosophy-card">
+          <div
+            className="philosophy-card interactive-tilt-card"
+            onMouseMove={handleCardMouseMove}
+            onMouseLeave={handleCardMouseLeave}
+          >
             <div className="card-stamp"><Sun size={20} /><span>AWAKE FUSION</span></div>
             <h3>Confirmed Awake Time vs Unlock Timer</h3>
             <p>
@@ -357,7 +494,11 @@ export function LandingPage({
             </p>
           </div>
 
-          <div className="philosophy-card">
+          <div
+            className="philosophy-card interactive-tilt-card"
+            onMouseMove={handleCardMouseMove}
+            onMouseLeave={handleCardMouseLeave}
+          >
             <div className="card-stamp"><Leaf size={20} /><span>ZERO TELEMETRY</span></div>
             <h3>Local Sovereignty & Deep Privacy</h3>
             <p>
@@ -369,7 +510,7 @@ export function LandingPage({
 
       {/* Interactive Feature Deep Dive */}
       <section id="features" className="landing-features-section" aria-labelledby="features-heading">
-        <div className="section-header">
+        <div className="section-header reveal-on-scroll reveal-fade-up">
           <span className="eyebrow">DESIGNED FOR RESTRAINT</span>
           <h2 id="features-heading">Every tool crafted to protect your hours.</h2>
           <p className="section-subhead">
@@ -379,7 +520,7 @@ export function LandingPage({
         </div>
 
         {/* Feature Tabs Bar */}
-        <div className="feature-tabs-nav" role="tablist">
+        <div className="feature-tabs-nav reveal-on-scroll reveal-fade-up" role="tablist">
           <button
             role="tab"
             aria-selected={activeFeatureTab === 'shield'}
@@ -419,9 +560,9 @@ export function LandingPage({
         </div>
 
         {/* Tab Showcase Cards */}
-        <div className="feature-tab-panel" role="tabpanel">
+        <div className="feature-tab-panel reveal-on-scroll reveal-scale" role="tabpanel">
           {activeFeatureTab === 'shield' && (
-            <div className="feature-panel-grid">
+            <div className="feature-panel-grid" key="shield">
               <div className="panel-copy">
                 <span className="panel-badge">NATIVE ANDROID & WEB</span>
                 <h3>Keep distractions on the outside.</h3>
@@ -436,19 +577,23 @@ export function LandingPage({
                 </ul>
               </div>
               <div className="panel-visual shield-visual">
-                <div className="mockup-card">
+                <div
+                  className="mockup-card interactive-tilt-card"
+                  onMouseMove={handleCardMouseMove}
+                  onMouseLeave={handleCardMouseLeave}
+                >
                   <div className="mockup-tag">tend / a little space to choose</div>
-                  <div className="mockup-symbol">✋</div>
+                  <div className="mockup-symbol hand-pulse-icon">✋</div>
                   <h4>You are not eligible to access Instagram.</h4>
                   <p>Your morning commitments are still pending (2 tasks remaining). Finish your focus block to unlock.</p>
-                  <button className="primary mockup-btn">Open Tend & Finish Task</button>
+                  <button className="primary mockup-btn" onClick={onLaunchApp}>Open Tend & Finish Task</button>
                 </div>
               </div>
             </div>
           )}
 
           {activeFeatureTab === 'wake' && (
-            <div className="feature-panel-grid">
+            <div className="feature-panel-grid" key="wake">
               <div className="panel-copy">
                 <span className="panel-badge">SENSOR FUSION TECHNOLOGY</span>
                 <h3>Guard your first 60 minutes of real awake time.</h3>
@@ -463,7 +608,11 @@ export function LandingPage({
                 </ul>
               </div>
               <div className="panel-visual wake-visual">
-                <div className="mockup-card">
+                <div
+                  className="mockup-card interactive-tilt-card"
+                  onMouseMove={handleCardMouseMove}
+                  onMouseLeave={handleCardMouseLeave}
+                >
                   <div className="mockup-tag">tend / morning focus session</div>
                   <div className="mockup-symbol">🌅</div>
                   <h4>Rise and shine. Your morning is protected.</h4>
@@ -478,7 +627,7 @@ export function LandingPage({
           )}
 
           {activeFeatureTab === 'notebook' && (
-            <div className="feature-panel-grid">
+            <div className="feature-panel-grid" key="notebook">
               <div className="panel-copy">
                 <span className="panel-badge">TACTILE WRITING SANCTUARY</span>
                 <h3>A quiet notebook for thoughts that deserve space.</h3>
@@ -493,7 +642,11 @@ export function LandingPage({
                 </ul>
               </div>
               <div className="panel-visual notebook-visual">
-                <div className="mockup-card notebook-paper-look">
+                <div
+                  className="mockup-card notebook-paper-look interactive-tilt-card"
+                  onMouseMove={handleCardMouseMove}
+                  onMouseLeave={handleCardMouseLeave}
+                >
                   <div className="notebook-header-line">
                     <span className="notebook-date">OCTOBER 15 · MORNING REFLECTION</span>
                   </div>
@@ -502,14 +655,14 @@ export function LandingPage({
                     The hardest part isn’t the work itself. It’s sitting with the silence before the momentum starts.
                     Turning off the chatter outside made room for this chapter to breathe…
                   </p>
-                  <div className="notebook-corner-doodle"><Star /></div>
+                  <div className="notebook-corner-doodle" title="Twinkle doodle"><Star /></div>
                 </div>
               </div>
             </div>
           )}
 
           {activeFeatureTab === 'sync' && (
-            <div className="feature-panel-grid">
+            <div className="feature-panel-grid" key="sync">
               <div className="panel-copy">
                 <span className="panel-badge">REAL-TIME MULTI-DEVICE SYNC</span>
                 <h3>Sync effortlessly across phone, tablet & desktop.</h3>
@@ -525,7 +678,11 @@ export function LandingPage({
                 </ul>
               </div>
               <div className="panel-visual sync-visual">
-                <div className="mockup-card sync-box">
+                <div
+                  className="mockup-card sync-box interactive-tilt-card"
+                  onMouseMove={handleCardMouseMove}
+                  onMouseLeave={handleCardMouseLeave}
+                >
                   <div className="sync-nodes">
                     <div className="sync-node active">
                       <Laptop size={22} />
@@ -553,7 +710,11 @@ export function LandingPage({
 
       {/* Android Mobile APK Download Section */}
       <section id="android" className="landing-android-section" aria-labelledby="android-heading">
-        <div className="android-card">
+        <div
+          className="android-card interactive-tilt-card reveal-on-scroll reveal-fade-up"
+          onMouseMove={handleCardMouseMove}
+          onMouseLeave={handleCardMouseLeave}
+        >
           <div className="android-card-content">
             <span className="eyebrow">NATIVE ANDROID EXPERIENCE</span>
             <h2 id="android-heading">Tend for Android · v1.1.14</h2>
@@ -602,9 +763,25 @@ export function LandingPage({
                     <Sprout className="w-sprout" />
                     <strong>TODAY’S MISSIONS</strong>
                   </div>
-                  <div className="widget-item done">✓ Morning movement logged</div>
-                  <div className="widget-item active">⏳ Write systems paper draft</div>
-                  <div className="widget-btn">+ Add Quick Task</div>
+                  {phoneTasks.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      className={`widget-item ${t.done ? 'done' : 'active'}`}
+                      onClick={() => togglePhoneTask(t.id)}
+                      title="Tap to toggle in demo"
+                    >
+                      <span>{t.done ? '✓' : '⏳'} {t.text}</span>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="widget-btn"
+                    onClick={handleAddPhoneTask}
+                    title="Tap to add task in widget demo"
+                  >
+                    + Add Quick Task
+                  </button>
                 </div>
               </div>
             </div>
@@ -614,7 +791,11 @@ export function LandingPage({
 
       {/* Community / Final Call to Action */}
       <section className="landing-cta-section">
-        <div className="cta-inner">
+        <div
+          className="cta-inner interactive-tilt-card reveal-on-scroll reveal-scale"
+          onMouseMove={handleCardMouseMove}
+          onMouseLeave={handleCardMouseLeave}
+        >
           <Garden className="cta-garden" />
           <h2>A life is built one tended day at a time.</h2>
           <p>

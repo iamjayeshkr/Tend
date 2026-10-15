@@ -71,9 +71,9 @@ export function Garden({ className = "" }: { className?: string }) {
     </svg>
   );
 }
-export function SunDoodle() {
+export function SunDoodle({ className = "" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 100 100" fill="none" aria-hidden="true">
+    <svg className={className} viewBox="0 0 100 100" fill="none" aria-hidden="true">
       <g stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
         <path d="M33 36c11-13 35-6 37 10 3 20-23 33-36 17-8-9-8-19-1-27Z" />
         <path d="m48 9 1 12m27-3-7 10m21 19-11 2M79 77l-9-8M47 90l1-12M17 76l11-9M9 47l12 2m-2-31 10 11" />
