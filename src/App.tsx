@@ -45,6 +45,7 @@ import {
   Cloud,
   CloudOff,
   Globe,
+  LogOut,
 } from "lucide-react";
 import {
   defaultState,
@@ -1100,6 +1101,16 @@ export default function App({ environment }: { environment: PublicEnvironment })
           </p>
           <span className="hand arrow-note">one day at a time ↗</span>
         </div>
+        {identity.status === "signedIn" && (
+          <button
+            className="settings-nav account-nav"
+            onClick={() => setModal("account")}
+            title="Account & Connected Devices"
+          >
+            <Cloud size={18} />
+            Account
+          </button>
+        )}
         <button className="settings-nav" onClick={() => setModal("settings")}>
           <Settings size={18} />
           Preferences
@@ -1120,9 +1131,21 @@ export default function App({ environment }: { environment: PublicEnvironment })
           <BookOpen size={18} />
           Docs
         </button>
+        {identity.status === "signedIn" && (
+          <button
+            className="settings-nav signout-nav"
+            onClick={requestAccountSignOut}
+            title="Sign out of your Tend account"
+          >
+            <LogOut size={18} />
+            Sign out
+          </button>
+        )}
         <div className="local-label">
           <span />
-          Just you. All on your device.
+          {identity.status === "signedIn"
+            ? "Cloud sync connected"
+            : "Just you. All on your device."}
         </div>
       </aside>
       <div className="main-shell">

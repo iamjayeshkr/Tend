@@ -2148,3 +2148,23 @@
   }
 }
 
+/* Sidebar signed-in account & sign-out buttons */
+.settings-nav.signout-nav {
+  color: #a44838 !important;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.settings-nav.signout-nav:hover {
+  background: rgba(164, 72, 56, 0.09) !important;
+  color: #8c382a !important;
+}
+.settings-nav.account-nav {
+  color: #234533 !important;
+  font-weight: 500;
+  cursor: pointer;
+}
+.settings-nav.account-nav:hover {
+  background: rgba(35, 69, 51, 0.08) !important;
+}
+
