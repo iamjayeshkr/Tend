@@ -20,6 +20,7 @@ import {
   FileText,
   ExternalLink,
   Laptop,
+  LogOut,
   Play,
   Pause,
   RotateCcw,
@@ -33,6 +34,7 @@ export type LandingPageProps = {
   onOpenAuth: (initialMode?: 'signin' | 'signup') => void
   onOpenTerms: () => void
   hasOnboarded?: boolean
+  onSignOut?: () => Promise<void> | void
 }
 
 export function LandingPage({
@@ -41,8 +43,23 @@ export function LandingPage({
   onOpenAuth,
   onOpenTerms,
   hasOnboarded = false,
+  onSignOut,
 }: LandingPageProps) {
   const identity = useTendIdentity()
+  const [signingOut, setSigningOut] = useState(false)
+
+  const handleSignOut = async () => {
+    setSigningOut(true)
+    try {
+      if (onSignOut) {
+        await onSignOut()
+      } else if (identity.status === 'signedIn') {
+        await identity.signOut()
+      }
+    } finally {
+      setSigningOut(false)
+    }
+  }
 
   // Interactive Hero Demo State
   const [demoChecked, setDemoChecked] = useState(false)
@@ -100,17 +117,32 @@ export function LandingPage({
           </nav>
 
           <div className="landing-nav-actions">
-            {identity.status === 'signedIn' || hasOnboarded ? (
-              <button className="primary nav-launch-btn" onClick={onLaunchApp}>
-                <span>Open Dashboard</span>
-                <ArrowRight size={15} />
-              </button>
+            {identity.status === 'signedIn' ? (
+              <>
+                <button
+                  type="button"
+                  className="outline nav-signout-btn"
+                  onClick={handleSignOut}
+                  disabled={signingOut}
+                  title="Sign out of your Tend account"
+                >
+                  <LogOut size={15} />
+                  <span>{signingOut ? 'Signing out…' : 'Sign out'}</span>
+                </button>
+                <button type="button" className="primary nav-launch-btn" onClick={onLaunchApp}>
+                  <span>Open Dashboard</span>
+                  <ArrowRight size={15} />
+                </button>
+              </>
             ) : (
               <>
-                <button className="text-button nav-signin-btn" onClick={() => onOpenAuth('signin')}>
+                <button type="button" className="text-button nav-signin-btn" onClick={() => onOpenAuth('signin')}>
                   Sign in
                 </button>
-                <button className="primary nav-launch-btn" onClick={onLaunchApp}>
+                <button type="button" className="outline nav-signup-btn" onClick={() => onOpenAuth('signup')}>
+                  Sign up
+                </button>
+                <button type="button" className="primary nav-launch-btn" onClick={onLaunchApp}>
                   <span>Open Dashboard</span>
                   <ArrowRight size={16} />
                 </button>
@@ -140,15 +172,34 @@ export function LandingPage({
           </p>
 
           <div className="hero-cta-group">
-            <button className="primary hero-primary-cta" onClick={onLaunchApp}>
+            <button type="button" className="primary hero-primary-cta" onClick={onLaunchApp}>
               <span>{hasOnboarded ? 'Open Your Dashboard' : 'Open Tend Dashboard'}</span>
               <ArrowRight size={18} />
             </button>
+            {identity.status === 'signedIn' ? (
+              <button
+                type="button"
+                className="outline hero-secondary-cta"
+                onClick={handleSignOut}
+                disabled={signingOut}
+              >
+                <LogOut size={16} />
+                <span>{signingOut ? 'Signing out…' : 'Sign out'}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="outline hero-secondary-cta"
+                onClick={() => onOpenAuth('signup')}
+              >
+                <span>Create Free Account</span>
+              </button>
+            )}
             <a href="#android" className="outline hero-secondary-cta">
               <Smartphone size={18} />
               <span>Get Android App (APK)</span>
             </a>
-            <button className="text-button hero-docs-link" onClick={onOpenDocs}>
+            <button type="button" className="text-button hero-docs-link" onClick={onOpenDocs}>
               <span>Explore Documentation</span>
               <ArrowUpRight size={16} />
             </button>
@@ -571,11 +622,30 @@ export function LandingPage({
             Just a quiet space to do what you promised yourself.
           </p>
           <div className="cta-buttons">
-            <button className="primary cta-large-btn" onClick={onLaunchApp}>
+            <button type="button" className="primary cta-large-btn" onClick={onLaunchApp}>
               <span>Enter Tend Dashboard</span>
               <ArrowRight size={18} />
             </button>
-            <button className="outline cta-docs-btn" onClick={onOpenDocs}>
+            {identity.status === 'signedIn' ? (
+              <button
+                type="button"
+                className="outline cta-docs-btn"
+                onClick={handleSignOut}
+                disabled={signingOut}
+              >
+                <LogOut size={16} />
+                <span>{signingOut ? 'Signing out…' : 'Sign out'}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="outline cta-docs-btn"
+                onClick={() => onOpenAuth('signup')}
+              >
+                <span>Create Free Account</span>
+              </button>
+            )}
+            <button type="button" className="outline cta-docs-btn" onClick={onOpenDocs}>
               <FileText size={17} />
               <span>Read Documentation</span>
             </button>
@@ -596,8 +666,24 @@ export function LandingPage({
           </div>
 
           <div className="footer-col">
-            <strong>Product</strong>
-            <button onClick={onLaunchApp} className="footer-link-btn">Launch App</button>
+            <strong>Product & Account</strong>
+            <button type="button" onClick={onLaunchApp} className="footer-link-btn">Open Dashboard</button>
+            {identity.status === 'signedIn' ? (
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="footer-link-btn"
+                disabled={signingOut}
+                style={{ color: '#9C4535', fontWeight: 600 }}
+              >
+                {signingOut ? 'Signing out…' : 'Sign out'}
+              </button>
+            ) : (
+              <>
+                <button type="button" onClick={() => onOpenAuth('signin')} className="footer-link-btn">Sign in</button>
+                <button type="button" onClick={() => onOpenAuth('signup')} className="footer-link-btn">Create account</button>
+              </>
+            )}
             <a href="#features">Features</a>
             <a href="#philosophy">Philosophy</a>
             <a href="#android">Android APK (v1.1.14)</a>

@@ -147,6 +147,81 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--landing-ink);
+  background: transparent;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+.nav-signin-btn:hover {
+  background: rgba(46, 82, 62, 0.08);
+}
+
+.nav-signup-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 9px;
+  border: 1px solid var(--landing-pine);
+  color: var(--landing-pine);
+  background: transparent;
+  transition: all 0.15s ease;
+}
+
+.nav-signup-btn:hover {
+  background: rgba(46, 82, 62, 0.08);
+}
+
+.nav-signout-btn {
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 9px;
+  border: 1px solid #D8C3BC;
+  color: #9C4535;
+  background: rgba(156, 69, 53, 0.04);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.nav-signout-btn:hover {
+  background: rgba(156, 69, 53, 0.12);
+  border-color: #9C4535;
+  color: #8C382A;
+}
+
+.docs-signout-btn {
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 9px;
+  border: 1px solid #D8C3BC;
+  color: #9C4535;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.docs-signout-btn:hover {
+  background: rgba(156, 69, 53, 0.09);
+  color: #8C382A;
+}
+
+.docs-signin-btn {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--landing-ink);
+  padding: 8px 12px;
+  background: transparent;
+  border-radius: 8px;
+}
+
+.docs-signin-btn:hover {
+  background: rgba(46, 82, 62, 0.08);
 }
 
 .nav-launch-btn {

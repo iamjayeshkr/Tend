@@ -631,6 +631,23 @@ export default function App({ environment }: { environment: PublicEnvironment })
     return () => window.removeEventListener("tend-back", handler);
   }, [modal, page]);
 
+  const finishAccountSignOut = async () => {
+    if (identity.status !== "signedIn") return;
+    syncEngine.current?.stop();
+    await identity.signOut();
+  };
+  const requestAccountSignOut = async () => {
+    if (identity.status !== "signedIn") return;
+    const repository = accountRepository.current;
+    if (!repository) return;
+    const preparation = await new WorkspaceManager(repository).prepareSignOut(identity.userId);
+    if (preparation.status === "requiresSyncOrExport") {
+      setModal("signout");
+      return;
+    }
+    await finishAccountSignOut();
+  };
+
   if (currentView === "landing") {
     return (
       <LandingPage
@@ -642,6 +659,7 @@ export default function App({ environment }: { environment: PublicEnvironment })
           navigateToView("auth", mode === "signup" ? "#signup" : "#auth");
         }}
         onOpenTerms={() => navigateToView("docs", "#docs")}
+        onSignOut={requestAccountSignOut}
       />
     );
   }
@@ -650,7 +668,12 @@ export default function App({ environment }: { environment: PublicEnvironment })
     return (
       <DocsPage
         onBackToLanding={() => navigateToView("landing", "#landing")}
-        onLaunchApp={() => navigateToView("app")}
+        onLaunchApp={() => navigateToView("app", "#app")}
+        onOpenAuth={(mode) => {
+          setAuthInitialMode(mode ?? "signin");
+          navigateToView("auth", mode === "signup" ? "#signup" : "#auth");
+        }}
+        onSignOut={requestAccountSignOut}
       />
     );
   }
@@ -919,22 +942,6 @@ export default function App({ environment }: { environment: PublicEnvironment })
     anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     notify("Your guest recovery copy is ready.");
-  };
-  const finishAccountSignOut = async () => {
-    if (identity.status !== "signedIn") return;
-    syncEngine.current?.stop();
-    await identity.signOut();
-  };
-  const requestAccountSignOut = async () => {
-    if (identity.status !== "signedIn") return;
-    const repository = accountRepository.current;
-    if (!repository) return;
-    const preparation = await new WorkspaceManager(repository).prepareSignOut(identity.userId);
-    if (preparation.status === "requiresSyncOrExport") {
-      setModal("signout");
-      return;
-    }
-    await finishAccountSignOut();
   };
   const alarmSync = (state: AppState) => {
     if (!native()) return;

@@ -15,6 +15,7 @@ import {
   Laptop,
   Leaf,
   Lock,
+  LogOut,
   Moon,
   Search,
   Shield,
@@ -23,10 +24,13 @@ import {
   Sun,
   Timer,
 } from 'lucide-react'
+import { useTendIdentity } from './auth/TendAuthProvider'
 
 export type DocsPageProps = {
   onBackToLanding: () => void
   onLaunchApp: () => void
+  onOpenAuth?: (mode?: 'signin' | 'signup') => void
+  onSignOut?: () => Promise<void> | void
 }
 
 type DocSectionId =
@@ -40,7 +44,13 @@ type DocSectionId =
   | 'android'
   | 'faq'
 
-export function DocsPage({ onBackToLanding, onLaunchApp }: DocsPageProps) {
+export function DocsPage({
+  onBackToLanding,
+  onLaunchApp,
+  onOpenAuth,
+  onSignOut,
+}: DocsPageProps) {
+  const identity = useTendIdentity()
   const [activeSection, setActiveSection] = useState<DocSectionId>('philosophy')
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -88,10 +98,39 @@ export function DocsPage({ onBackToLanding, onLaunchApp }: DocsPageProps) {
           </div>
 
           <div className="docs-nav-right">
-            <button className="primary docs-launch-btn" onClick={onLaunchApp}>
-              <span>Open Tend App</span>
-              <ArrowRight size={16} />
-            </button>
+            {identity.status === 'signedIn' ? (
+              <>
+                <button
+                  type="button"
+                  className="outline docs-signout-btn"
+                  onClick={onSignOut ? onSignOut : identity.signOut}
+                  title="Sign out of Tend"
+                >
+                  <LogOut size={15} />
+                  <span>Sign out</span>
+                </button>
+                <button type="button" className="primary docs-launch-btn" onClick={onLaunchApp}>
+                  <span>Open Dashboard</span>
+                  <ArrowRight size={16} />
+                </button>
+              </>
+            ) : (
+              <>
+                {onOpenAuth && (
+                  <button
+                    type="button"
+                    className="text-button docs-signin-btn"
+                    onClick={() => onOpenAuth('signin')}
+                  >
+                    Sign in
+                  </button>
+                )}
+                <button type="button" className="primary docs-launch-btn" onClick={onLaunchApp}>
+                  <span>Open Dashboard</span>
+                  <ArrowRight size={16} />
+                </button>
+              </>
+            )}
           </div>
         </div>
       </header>
