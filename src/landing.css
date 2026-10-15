@@ -368,7 +368,7 @@ html {
   width: 90px;
   height: 90px;
   color: #CBB99C;
-  transform: translate(var(--hero-px, 0px), var(--hero-py, 0px)) rotate(12deg);
+  transform: translate(calc(var(--hero-px, 0px) + var(--scroll-y, 0px) * -0.06), calc(var(--hero-py, 0px) + var(--scroll-y, 0px) * 0.05)) rotate(calc(12deg + var(--scroll-y, 0px) * 0.03deg));
 }
 
 .hero-doodle-star {
@@ -377,7 +377,7 @@ html {
   width: 44px;
   height: 44px;
   color: #7D9276;
-  transform: translate(calc(var(--hero-px, 0px) * -0.8), calc(var(--hero-py, 0px) * -0.8)) rotate(-15deg);
+  transform: translate(calc(var(--hero-px, 0px) * -0.8 + var(--scroll-y, 0px) * 0.04), calc(var(--hero-py, 0px) * -0.8 + var(--scroll-y, 0px) * -0.04)) rotate(calc(-15deg + var(--scroll-y, 0px) * -0.025deg));
 }
 
 .landing-hero-content {
@@ -949,16 +949,34 @@ html {
 }
 
 .demo-task-text strong {
-  display: block;
+  display: inline-block;
   font-size: 14px;
   color: var(--landing-ink);
   line-height: 1.4;
-  transition: color 0.2s ease, text-decoration 0.2s ease;
+  position: relative;
+  transition: color 0.25s var(--ease-smooth);
+}
+
+.demo-task-text strong::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 52%;
+  width: 100%;
+  height: 1.5px;
+  background: #8C9C8C;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.28s var(--ease-spring);
 }
 
 .demo-task-text strong.task-done {
   color: #8C9C8C;
-  text-decoration: line-through;
+}
+
+.demo-task-text strong.task-done::after {
+  transform: scaleX(1);
+  transform-origin: left;
 }
 
 .demo-task-text small {
@@ -1186,15 +1204,15 @@ html {
 
 
 /* ==========================================================================
-   Scroll Reveal System
+   Scroll Reveal System with Bi-Directional & Reverse Motion
    ========================================================================== */
 .reveal-on-scroll {
   opacity: 0;
   transform: translateY(24px);
   filter: blur(4px);
-  transition: opacity 0.75s var(--ease-smooth),
-              transform 0.75s var(--ease-smooth),
-              filter 0.75s var(--ease-smooth);
+  transition: opacity 0.65s var(--ease-smooth),
+              transform 0.65s var(--ease-spring),
+              filter 0.65s var(--ease-smooth);
   will-change: transform, opacity, filter;
 }
 
@@ -1204,12 +1222,21 @@ html {
   filter: blur(0);
 }
 
+/* Reverse Motion: when scrolling UP, resetting items enter from top offset */
+[data-scroll-dir="up"] .reveal-on-scroll:not(.is-revealed) {
+  transform: translateY(-20px);
+}
+
 .reveal-on-scroll.reveal-scale {
   transform: scale(0.96) translateY(12px);
 }
 
 .reveal-on-scroll.reveal-scale.is-revealed {
   transform: scale(1) translateY(0);
+}
+
+[data-scroll-dir="up"] .reveal-on-scroll.reveal-scale:not(.is-revealed) {
+  transform: scale(0.96) translateY(-14px);
 }
 
 .reveal-stagger.is-revealed > *:nth-child(1) { transition-delay: 0.06s; }
@@ -1504,6 +1531,14 @@ html {
   animation: panelContentIn 0.35s var(--ease-smooth) forwards;
 }
 
+.feature-tab-panel.tab-dir-forward .feature-panel-grid {
+  animation: panelSlideForward 0.38s var(--ease-spring) forwards;
+}
+
+.feature-tab-panel.tab-dir-reverse .feature-panel-grid {
+  animation: panelSlideReverse 0.38s var(--ease-spring) forwards;
+}
+
 @keyframes panelContentIn {
   from {
     opacity: 0;
@@ -1512,6 +1547,28 @@ html {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes panelSlideForward {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes panelSlideReverse {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
@@ -2822,6 +2879,411 @@ html {
   line-height: 1.55;
   color: #63433C;
   margin: 0;
+}
+
+/* ==========================================================================
+   Standard Operating Procedure (SOP) System Styles
+   ========================================================================== */
+.sop-meta-header {
+  background: var(--landing-card-warm);
+  border: 1px solid var(--landing-border);
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 32px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.sop-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed #DDD8C8;
+  margin-bottom: 14px;
+}
+
+.sop-code-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: monospace;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #2E523E;
+  background: #E8F0EA;
+  padding: 5px 12px;
+  border-radius: 7px;
+  border: 1px solid #CADBCF;
+}
+
+.sop-status-pill {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2E523E;
+  background: #D8EADB;
+  padding: 4px 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sop-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  font-size: 13px;
+}
+
+.sop-meta-item strong {
+  display: block;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--landing-muted);
+  margin-bottom: 3px;
+}
+
+.sop-meta-item span {
+  color: var(--landing-ink);
+  font-weight: 600;
+}
+
+/* SOP Annotated Diagram Canvas */
+.sop-diagram-canvas {
+  background: #FAF8EF;
+  border: 1px solid #DCD7C3;
+  border-radius: 20px;
+  padding: 24px;
+  margin: 28px 0 36px;
+  box-shadow: 0 4px 18px rgba(31, 60, 44, 0.07);
+  position: relative;
+}
+
+.sop-canvas-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #EBE6D7;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.sop-canvas-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Fraunces', serif;
+  font-size: 16.5px;
+  font-weight: 500;
+  color: var(--landing-ink);
+}
+
+.sop-canvas-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2E523E;
+  background: #E8F0EA;
+  padding: 3px 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #CADBCF;
+}
+
+/* Visual Stage & Mockup Frame */
+.sop-visual-stage {
+  position: relative;
+  background: #FFFFFF;
+  border: 1px solid #E6E1D2;
+  border-radius: 16px;
+  padding: 26px 22px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.03);
+}
+
+/* Pointer Pins & Callouts */
+.sop-pin {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #2E523E;
+  color: #FAF8EF;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-grid;
+  place-items: center;
+  box-shadow: 0 3px 10px rgba(46, 82, 62, 0.35);
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.2s var(--ease-spring), background-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.sop-pin:hover,
+.sop-pin.active {
+  transform: scale(1.15);
+  background: #1B3B2B;
+}
+
+.sop-pin::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(46, 82, 62, 0.4);
+  animation: pulseRipple 2.2s infinite;
+}
+
+/* Callout cards with directional SVG arrows */
+.sop-callouts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px dashed #DDD8C8;
+}
+
+.sop-callout-card {
+  background: #FAF8EF;
+  border: 1px solid #DCD7C3;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.sop-callout-card:hover,
+.sop-callout-card.active {
+  background: #FFFFFF;
+  border-color: #2E523E;
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 14px rgba(46, 82, 62, 0.08);
+}
+
+.sop-callout-card strong {
+  display: block;
+  color: var(--landing-ink);
+  font-size: 12.5px;
+  margin-bottom: 2px;
+}
+
+.sop-callout-card p {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--landing-muted);
+}
+
+/* SOP Step-by-Step Interactive Checklists */
+.sop-step-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 24px 0 32px;
+}
+
+.sop-step-item {
+  background: #FFFFFF;
+  border: 1px solid var(--landing-border);
+  border-radius: 14px;
+  padding: 18px 20px;
+  transition: all 0.2s var(--ease-smooth);
+  position: relative;
+}
+
+.sop-step-item:hover {
+  border-color: #C8DACD;
+  box-shadow: 0 4px 14px rgba(31, 60, 44, 0.06);
+}
+
+.sop-step-item.is-completed {
+  background: #FAFBF9;
+  border-color: #CADBCF;
+}
+
+.sop-step-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.sop-step-num-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sop-step-checkbox {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 2px solid #C4D3C7;
+  background: #FAF9F5;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  color: #FAF8EF;
+  transition: all 0.18s var(--ease-spring);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.sop-step-checkbox:hover {
+  border-color: #2E523E;
+}
+
+.sop-step-checkbox.checked {
+  background: #2E523E;
+  border-color: #2E523E;
+}
+
+.sop-step-title {
+  font-family: 'Fraunces', serif;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--landing-ink);
+  margin: 0;
+}
+
+.sop-step-pointer-tag {
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: #2E523E;
+  background: #E8F0EA;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid #CADBCF;
+}
+
+.sop-step-body {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #384A3E;
+  padding-left: 32px;
+}
+
+.sop-step-body p {
+  margin: 0 0 10px;
+}
+
+.sop-action-box {
+  background: #FAF8EF;
+  border-left: 3px solid #2E523E;
+  border-radius: 0 8px 8px 0;
+  padding: 10px 14px;
+  margin: 10px 0;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sop-action-box code {
+  background: #EBE6D7;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1F3C2C;
+}
+
+/* Troubleshooting Table */
+.sop-troubleshoot-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--landing-border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 20px 0 28px;
+  font-size: 13px;
+}
+
+.sop-troubleshoot-table th {
+  background: #E8F0EA;
+  color: #244234;
+  padding: 12px 16px;
+  font-weight: 700;
+  text-align: left;
+  border-bottom: 1px solid #CADBCF;
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.sop-troubleshoot-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #EBE6D7;
+  color: #384A3E;
+  vertical-align: top;
+  background: #FFFFFF;
+}
+
+.sop-troubleshoot-table tr:last-child td {
+  border-bottom: none;
+}
+
+.sop-troubleshoot-table td strong {
+  color: var(--landing-ink);
+}
+
+/* Success Criteria & Quality Gate */
+.sop-quality-gate {
+  background: #F4F8F4;
+  border: 1.5px solid #CADBCF;
+  border-radius: 14px;
+  padding: 20px;
+  margin: 24px 0;
+}
+
+.sop-quality-gate-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Fraunces', serif;
+  font-size: 16px;
+  font-weight: 500;
+  color: #244234;
+  margin-bottom: 12px;
+}
+
+.sop-quality-checklist {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13.5px;
+  color: #2E4537;
+}
+
+.sop-quality-checklist li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sop-quality-checklist li svg {
+  color: #2E523E;
+  flex-shrink: 0;
 }
 
 .faq-item {

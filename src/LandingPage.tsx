@@ -62,17 +62,28 @@ export function LandingPage({
     }
   }
 
-  // Header scroll shadow & blur state
+  // Header scroll shadow, bi-directional scroll tracking & continuous scroll progress
   useEffect(() => {
+    let lastScrollY = window.scrollY
     const onScroll = () => {
-      setIsScrolled(window.scrollY > 20)
+      const currentScrollY = window.scrollY
+      setIsScrolled(currentScrollY > 20)
+
+      const direction = currentScrollY >= lastScrollY ? 'down' : 'up'
+      document.documentElement.setAttribute('data-scroll-dir', direction)
+
+      const scrollRatio = Math.min(currentScrollY / 1000, 1)
+      document.documentElement.style.setProperty('--scroll-ratio', scrollRatio.toFixed(3))
+      document.documentElement.style.setProperty('--scroll-y', `${currentScrollY}px`)
+
+      lastScrollY = currentScrollY <= 0 ? 0 : currentScrollY
     }
     window.addEventListener('scroll', onScroll, { passive: true })
     onScroll()
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  // Viewport scroll reveal system
+  // Viewport scroll reveal system with bi-directional reverse motion
   useEffect(() => {
     if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return
 
@@ -87,15 +98,22 @@ export function LandingPage({
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
+          const el = entry.target as HTMLElement
           if (entry.isIntersecting) {
-            entry.target.classList.add('is-revealed')
-            observer.unobserve(entry.target)
+            el.classList.add('is-revealed')
+          } else {
+            // Reverse motion: when element scrolls completely out of viewport,
+            // remove 'is-revealed' so when the user scrolls back, it fluidly re-reveals!
+            const rect = el.getBoundingClientRect()
+            if (rect.top > window.innerHeight || rect.bottom < 0) {
+              el.classList.remove('is-revealed')
+            }
           }
         })
       },
       {
         threshold: 0.12,
-        rootMargin: '0px 0px -40px 0px',
+        rootMargin: '20px 0px 20px 0px',
       }
     )
 
@@ -154,6 +172,22 @@ export function LandingPage({
   const [demoTimerRunning, setDemoTimerRunning] = useState(false)
   const [demoSecondsLeft, setDemoSecondsLeft] = useState(25 * 60)
   const [activeFeatureTab, setActiveFeatureTab] = useState<'shield' | 'wake' | 'notebook' | 'sync'>('shield')
+  const [tabDirection, setTabDirection] = useState<'forward' | 'reverse'>('forward')
+
+  const tabIndexMap: Record<'shield' | 'wake' | 'notebook' | 'sync', number> = {
+    shield: 0,
+    wake: 1,
+    notebook: 2,
+    sync: 3,
+  }
+
+  const handleTabChange = (newTab: 'shield' | 'wake' | 'notebook' | 'sync') => {
+    if (newTab === activeFeatureTab) return
+    const prevIndex = tabIndexMap[activeFeatureTab]
+    const nextIndex = tabIndexMap[newTab]
+    setTabDirection(nextIndex > prevIndex ? 'forward' : 'reverse')
+    setActiveFeatureTab(newTab)
+  }
 
   // Interactive Tab Demo Simulations
   const [shieldInterceptTriggered, setShieldInterceptTriggered] = useState(false)
@@ -377,7 +411,7 @@ export function LandingPage({
           <div
             className="hero-floating-badge badge-top-left"
             style={{
-              transform: 'translate(calc(var(--hero-px, 0px) * 0.45), calc(var(--hero-py, 0px) * 0.45)) rotate(-3.5deg)',
+              transform: 'translate(calc(var(--hero-px, 0px) * 0.45), calc(var(--hero-py, 0px) * 0.45 + var(--scroll-y, 0px) * -0.04)) rotate(-3.5deg)',
             }}
             aria-hidden="true"
           >
@@ -395,7 +429,7 @@ export function LandingPage({
           <div
             className="hero-floating-badge badge-bottom-right"
             style={{
-              transform: 'translate(calc(var(--hero-px, 0px) * -0.55), calc(var(--hero-py, 0px) * -0.55)) rotate(2.5deg)',
+              transform: 'translate(calc(var(--hero-px, 0px) * -0.55), calc(var(--hero-py, 0px) * -0.55 + var(--scroll-y, 0px) * 0.035)) rotate(2.5deg)',
             }}
             aria-hidden="true"
           >
@@ -647,7 +681,7 @@ export function LandingPage({
             role="tab"
             aria-selected={activeFeatureTab === 'shield'}
             className={`feature-tab-btn ${activeFeatureTab === 'shield' ? 'active' : ''}`}
-            onClick={() => setActiveFeatureTab('shield')}
+            onClick={() => handleTabChange('shield')}
           >
             <Shield size={18} className="tab-icon" />
             <span>App Shield & Strict Mode</span>
@@ -656,7 +690,7 @@ export function LandingPage({
             role="tab"
             aria-selected={activeFeatureTab === 'wake'}
             className={`feature-tab-btn ${activeFeatureTab === 'wake' ? 'active' : ''}`}
-            onClick={() => setActiveFeatureTab('wake')}
+            onClick={() => handleTabChange('wake')}
           >
             <Sun size={18} className="tab-icon" />
             <span>Morning Wake Engine</span>
@@ -665,7 +699,7 @@ export function LandingPage({
             role="tab"
             aria-selected={activeFeatureTab === 'notebook'}
             className={`feature-tab-btn ${activeFeatureTab === 'notebook' ? 'active' : ''}`}
-            onClick={() => setActiveFeatureTab('notebook')}
+            onClick={() => handleTabChange('notebook')}
           >
             <BookOpen size={18} className="tab-icon" />
             <span>Reflection Notebook</span>
@@ -674,7 +708,7 @@ export function LandingPage({
             role="tab"
             aria-selected={activeFeatureTab === 'sync'}
             className={`feature-tab-btn ${activeFeatureTab === 'sync' ? 'active' : ''}`}
-            onClick={() => setActiveFeatureTab('sync')}
+            onClick={() => handleTabChange('sync')}
           >
             <Cloud size={18} className="tab-icon" />
             <span>Real-Time Multi-Device Sync</span>
@@ -682,7 +716,7 @@ export function LandingPage({
         </div>
 
         {/* Tab Showcase Cards */}
-        <div className="feature-tab-panel reveal-on-scroll reveal-scale" role="tabpanel">
+        <div className={`feature-tab-panel tab-dir-${tabDirection} reveal-on-scroll reveal-scale`} role="tabpanel">
           {activeFeatureTab === 'shield' && (
             <div className="feature-panel-grid" key="shield">
               <div className="panel-copy">
