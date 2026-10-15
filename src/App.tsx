@@ -44,6 +44,7 @@ import {
   StopCircle,
   Cloud,
   CloudOff,
+  Globe,
 } from "lucide-react";
 import {
   defaultState,
@@ -83,6 +84,10 @@ import { SyncStatus } from "./sync/SyncStatus";
 import { deviceIdFor } from "./sync/deviceIdentity";
 import type { SyncGateway } from "./sync/gatewayClient";
 import type { SyncEngine as SyncEngineType, SyncState } from "./sync/syncEngine";
+import { LandingPage } from "./LandingPage";
+import { DocsPage } from "./DocsPage";
+import { AuthPage } from "./AuthPage";
+import { AccountPanel } from "./auth/AccountPanel";
 const native = () => (window as any).AndroidBridge;
 const categories: Category[] = [
   "study",
@@ -123,6 +128,7 @@ type Modal =
   | "activity"
   | "bored"
   | "signout"
+  | "account"
   | null;
 const navItems: {
   id: Page;
@@ -215,6 +221,65 @@ export default function App({ environment }: { environment: PublicEnvironment })
     [toast, setToast] = useState(""),
     [busy, setBusy] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [currentView, setCurrentView] = useState<"app" | "landing" | "docs" | "auth">(() => {
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash.toLowerCase();
+      if (hash.startsWith("#landing")) return "landing";
+      if (hash.startsWith("#docs")) return "docs";
+      if (hash.startsWith("#auth") || hash.startsWith("#signin") || hash.startsWith("#signup")) return "auth";
+    }
+    return "app";
+  });
+  const [authInitialMode, setAuthInitialMode] = useState<"signin" | "signup">("signin");
+
+  useEffect(() => {
+    const syncHash = () => {
+      const hash = window.location.hash.toLowerCase();
+      if (hash.startsWith("#landing")) setCurrentView("landing");
+      else if (hash.startsWith("#docs")) setCurrentView("docs");
+      else if (hash.startsWith("#signup")) {
+        setAuthInitialMode("signup");
+        setCurrentView("auth");
+      } else if (hash.startsWith("#auth") || hash.startsWith("#signin")) {
+        setAuthInitialMode("signin");
+        setCurrentView("auth");
+      } else if (hash === "" || hash === "#" || hash.startsWith("#today") || hash.startsWith("#focus") || hash.startsWith("#notebook") || hash.startsWith("#you")) {
+        setCurrentView("app");
+      }
+    };
+    window.addEventListener("hashchange", syncHash);
+    return () => window.removeEventListener("hashchange", syncHash);
+  }, []);
+
+  const navigateToView = (view: "app" | "landing" | "docs" | "auth", hash?: string) => {
+    setCurrentView(view);
+    if (typeof window !== "undefined") {
+      if (view === "app") {
+        if (window.location.hash.startsWith("#landing") || window.location.hash.startsWith("#docs") || window.location.hash.startsWith("#auth") || window.location.hash.startsWith("#signup")) {
+          history.pushState(null, "", window.location.pathname + window.location.search);
+        }
+      } else {
+        window.location.hash = hash || `#${view}`;
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (identity.status !== "signedIn") return;
+    const triggerSync = () => {
+      if (document.visibilityState === "visible") {
+        void syncEngine.current?.syncNow();
+      }
+    };
+    window.addEventListener("focus", triggerSync);
+    document.addEventListener("visibilitychange", triggerSync);
+    const interval = setInterval(triggerSync, 30000);
+    return () => {
+      window.removeEventListener("focus", triggerSync);
+      document.removeEventListener("visibilitychange", triggerSync);
+      clearInterval(interval);
+    };
+  }, [identity.status]);
   const [workspaceLock, setWorkspaceLock] = useState<Extract<WorkspaceSelection, {kind:"locked"}> | null>(null);
   const accountRepository = useRef<LocalRepository | null>(null);
   const syncEngine = useRef<SyncEngineType | null>(null);
@@ -555,6 +620,42 @@ export default function App({ environment }: { environment: PublicEnvironment })
     window.addEventListener("tend-back", handler);
     return () => window.removeEventListener("tend-back", handler);
   }, [modal, page]);
+
+  if (currentView === "landing") {
+    return (
+      <LandingPage
+        onLaunchApp={() => navigateToView("app")}
+        onOpenDocs={() => navigateToView("docs", "#docs")}
+        onOpenAuth={(mode) => {
+          setAuthInitialMode(mode ?? "signin");
+          navigateToView("auth", mode === "signup" ? "#signup" : "#auth");
+        }}
+        onOpenTerms={() => navigateToView("docs", "#docs")}
+      />
+    );
+  }
+
+  if (currentView === "docs") {
+    return (
+      <DocsPage
+        onBackToLanding={() => navigateToView("landing", "#landing")}
+        onLaunchApp={() => navigateToView("app")}
+      />
+    );
+  }
+
+  if (currentView === "auth") {
+    return (
+      <AuthPage
+        initialMode={authInitialMode}
+        clerkPublishableKey={environment.cloud?.clerkPublishableKey}
+        hasLocalGuestData={Boolean(s && (s.tasks.length > 0 || s.routine.length > 0 || s.activities.length > 0))}
+        onBack={() => navigateToView(s ? "app" : "landing", s ? "" : "#landing")}
+        onContinueAsGuest={() => navigateToView("app")}
+      />
+    );
+  }
+
   if (workspaceLock)
     return (
       <div className="load-screen">
@@ -943,9 +1044,10 @@ export default function App({ environment }: { environment: PublicEnvironment })
     activity: "The real story.",
     bored: "A little space to just be.",
     signout: "Keep every change safe.",
+    account: "Account & Connected Devices",
   };
   const selectedReview = s.reviews.find((r) => r.date === today);
-  if (!s.onboarded || showGuide) return <Welcome settings={s.settings} onCancel={s.onboarded?()=>setShowGuide(false):undefined} onFinish={async(settings,intention)=>{const ok=await commit(v=>({...v,onboarded:true,settings,tasks:intention?[...v.tasks,{id:uid(),title:intention,done:false,date:today,category:"study" as Category}]:v.tasks}));if(ok){setShowGuide(false);setFocusMins(settings.focusMinutes);go("today");if(stateRef.current)alarmSync(stateRef.current);}return ok;}}/>;
+  if (!s.onboarded || showGuide) return <Welcome settings={s.settings} onCancel={s.onboarded?()=>setShowGuide(false):undefined} onFinish={async(settings,intention)=>{const ok=await commit(v=>({...v,onboarded:true,settings,tasks:intention?[...v.tasks,{id:uid(),title:intention,done:false,date:today,category:"study" as Category}]:v.tasks}));if(ok){setShowGuide(false);setFocusMins(settings.focusMinutes);go("today");if(stateRef.current)alarmSync(stateRef.current);}return ok;}} onLanding={() => navigateToView("landing", "#landing")} onDocs={() => navigateToView("docs", "#docs")} />;
   const openFocus=(title?:string,category?:Category)=>{if(!active){setFocusTitle(title||"");setFocusCategory(category||"study");setFocusMins(s.settings.focusMinutes);setFocusTaskId(s.tasks.find(t=>!t.done&&t.title===title&&t.date===today)?.id||null);setFocusCompleted(false);}go("focus");};
   const selectedNav=["rhythm","reflect"].includes(page)?"you":page;
   return (
@@ -992,6 +1094,22 @@ export default function App({ environment }: { environment: PublicEnvironment })
           <Settings size={18} />
           Preferences
         </button>
+        <button
+          className="settings-nav"
+          onClick={() => navigateToView("landing", "#landing")}
+          title="Tend Overview & Manifesto"
+        >
+          <Globe size={18} />
+          Overview
+        </button>
+        <button
+          className="settings-nav"
+          onClick={() => navigateToView("docs", "#docs")}
+          title="Tend Documentation & Guides"
+        >
+          <BookOpen size={18} />
+          Docs
+        </button>
         <div className="local-label">
           <span />
           Just you. All on your device.
@@ -1006,6 +1124,22 @@ export default function App({ environment }: { environment: PublicEnvironment })
           <div className="breadcrumb">A day of your own <span>/</span> {page === "rhythm" ? "Daily rhythm" : page === "reflect" ? "Reflections" : navItems.find(n=>n.id===page)?.label}</div>
           <div className="top-actions">
             {page !== "notebook" && <SyncStatus cloudEnabled={identity.status === "signedIn"} state={syncState} compact />}
+            <button
+              className="topbar-nav-button"
+              onClick={() => navigateToView("landing", "#landing")}
+              title="Tend Overview & Manifesto"
+            >
+              <Globe size={14} />
+              <span>Overview</span>
+            </button>
+            <button
+              className="topbar-nav-button"
+              onClick={() => navigateToView("docs", "#docs")}
+              title="Tend Documentation & Guides"
+            >
+              <BookOpen size={14} />
+              <span>Docs</span>
+            </button>
             <span className="date-label">
               <CalendarDays size={15} />
               {new Date(now).toLocaleDateString("en", {
@@ -1026,7 +1160,7 @@ export default function App({ environment }: { environment: PublicEnvironment })
         <main>
           {!["today","notebook"].includes(page)&&<div className="page-heading"><div>{["rhythm","reflect"].includes(page)&&<button className="back-to-space" onClick={()=>go("you")}><ChevronLeft size={17}/>You</button>}<Pill>{headerCopy[page].label}</Pill><h1>{headerCopy[page].title}</h1><p>{headerCopy[page].subtitle}</p></div></div>}
           {page === "today" && <TodayPage state={s} now={now} commit={commit} onFocus={openFocus} onTask={()=>setModal("task")} onReview={()=>{setMood(selectedReview?.mood||3);setModal("review")}} onRhythm={()=>{setFilter("plan");go("rhythm")}} onLog={openLog} onWorkout={()=>{setSetCount(0);setModal("workout")}} onWake={()=>quickLife("wake")} onBored={()=>setModal("bored")} onGuide={()=>setShowGuide(true)}/>}
-          {page === "you" && <><AuthControls onSignOut={requestAccountSignOut}/><YourSpace state={s} onRhythm={()=>{setFilter("plan");go("rhythm")}} onReflect={()=>go("reflect")} onLog={()=>{setFilter("actual");go("rhythm")}} onSettings={()=>setModal("settings")} onGuide={()=>setShowGuide(true)} onShield={()=>{go("focus");setFocusTab("shield")}}/></>}
+          {page === "you" && <><AuthControls onSignOut={requestAccountSignOut} onOpenAuth={() => navigateToView("auth", "#auth")}/><YourSpace state={s} onRhythm={()=>{setFilter("plan");go("rhythm")}} onReflect={()=>go("reflect")} onLog={()=>{setFilter("actual");go("rhythm")}} onSettings={()=>setModal("settings")} onGuide={()=>setShowGuide(true)} onShield={()=>{go("focus");setFocusTab("shield")}} onAccount={()=>setModal("account")} onDocs={()=>navigateToView("docs", "#docs")} onLanding={()=>navigateToView("landing", "#landing")}/></>}
           {page === "rhythm" && (
             <>
               <div className="page-toolbar">
@@ -1618,7 +1752,24 @@ export default function App({ environment }: { environment: PublicEnvironment })
           e.target.value = "";
         }}
       />
-      {modal && (
+      {modal === "account" && (
+        <div
+          className="modal-backdrop"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setModal(null);
+          }}
+        >
+          <AccountPanel
+            supabaseUrl={environment.cloud?.supabaseUrl?.toString()}
+            onClose={() => setModal(null)}
+            onSignOut={async () => {
+              setModal(null);
+              await requestAccountSignOut();
+            }}
+          />
+        </div>
+      )}
+      {modal && modal !== "account" && (
         <div
           className="modal-backdrop"
           onMouseDown={(e) => {

@@ -4,7 +4,7 @@ import { useState } from 'react'
 
 import { useTendIdentity } from './TendAuthProvider'
 
-export function AuthControls({ onSignOut }: { onSignOut?: () => Promise<void> }) {
+export function AuthControls({ onSignOut, onOpenAuth }: { onSignOut?: () => Promise<void>; onOpenAuth?: () => void }) {
   const identity = useTendIdentity()
   const [signingOut, setSigningOut] = useState(false)
 
@@ -12,10 +12,15 @@ export function AuthControls({ onSignOut }: { onSignOut?: () => Promise<void> })
     return (
       <section className="account-sync" aria-label="Account and cloud sync">
         <CloudOff aria-hidden="true" />
-        <div>
+        <div style={{ flex: 1 }}>
           <h2>Cloud sync is optional</h2>
-          <p>Your data stays on this device. Add account keys later to sync securely.</p>
+          <p>Your data stays on this device. Sign in or create an account to sync across devices.</p>
         </div>
+        {onOpenAuth && (
+          <button className="primary small" type="button" onClick={onOpenAuth}>
+            Sign in / Sign up
+          </button>
+        )}
       </section>
     )
   }

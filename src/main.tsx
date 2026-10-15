@@ -12,6 +12,7 @@ import { TendAuthProvider } from './auth/TendAuthProvider';
 import { readPublicEnvironment } from './security/env';
 import './styles.css';
 import './experience.css';
+import './landing.css';
 const environment = readPublicEnvironment({
   VITE_CLERK_PUBLISHABLE_KEY: import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
   VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,

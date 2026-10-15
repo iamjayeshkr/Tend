@@ -1,3 +1,14 @@
+export type DeviceSummary = {
+  deviceId: string
+  name: string
+  platform: 'web' | 'desktop'
+  appVersion: string
+  createdAt: string
+  lastSeenAt: string
+  revokedAt?: string | null
+  isCurrentDevice: boolean
+}
+
 export type TendIdentity =
   | { status: 'guest'; cloudAvailable: false }
   | { status: 'loading'; cloudAvailable: true }
