@@ -69,10 +69,16 @@ class MemoryRepository implements SyncRepository {
       throw new Error('simulated crash before cursor acknowledgement')
     }
     this.pending = this.pending.filter((item) => !result.operationIds.includes(item.operationId))
+    this.pending.push(...structuredClone(result.retryOperations ?? []))
+    const bases = { ...(this.metadata.bases ?? {}) }
+    for (const record of result.baseRecords ?? []) bases[`${record.collection}:${record.recordId}`] = structuredClone(record)
+    const conflicts = [...(this.metadata.conflicts ?? []), ...(result.conflicts ?? [])]
     this.metadata = {
       workspaceId: this.metadata.workspaceId,
       pullCursor: cursor ?? this.metadata.pullCursor,
       revisions: { ...this.metadata.revisions, ...(result.revisions ?? {}) },
+      ...(Object.keys(bases).length ? { bases } : {}),
+      ...(conflicts.length ? { conflicts } : {}),
     }
   }
 }
@@ -120,6 +126,7 @@ describe('SyncEngine durability', () => {
     expect(repository.events).toEqual(['commit', 'acknowledge'])
     expect(repository.state.tasks.map((task) => task.id)).toContain('remote')
     expect(repository.metadata.pullCursor).toBe('cursor-2')
+    expect(repository.metadata.bases?.['tasks:remote']).toEqual(expect.objectContaining({ revision: 2 }))
   })
 
   it('safely replays a page after records committed but cursor acknowledgement was interrupted', async () => {
@@ -168,6 +175,74 @@ describe('SyncEngine durability', () => {
     expect(calls).toEqual(['push', 'pull:expired-cursor', 'pull:bootstrap'])
     expect(repository.state.tasks).toEqual([])
     expect(repository.metadata.pullCursor).toBe('fresh-cursor')
+  })
+
+  it('requeues a disjoint conflict against the remote revision without losing either field', async () => {
+    const repository = new MemoryRepository()
+    const base = {
+      collection: 'tasks' as const, recordId: 'task-local', revision: 1,
+      modifiedAt: operation.changedAt, deletedAt: null,
+      data: { title: 'Base', done: false, date: '2026-10-14', category: 'work' },
+    }
+    const remote = { ...base, revision: 2, data: { ...base.data, done: true } }
+    repository.state.tasks = [{ id: 'task-local', ...operation.data } as AppState['tasks'][number]]
+    repository.pending = [{ ...operation, kind: 'patch', baseRevision: 1, changedFields: ['title'] }]
+    repository.metadata = {
+      workspaceId: 'account:user_a', pullCursor: 'cursor-0',
+      revisions: { 'tasks:task-local': 1 }, bases: { 'tasks:task-local': base },
+    }
+    const push = vi.fn(async ({ operations }: Parameters<SyncGateway['push']>[0]): Promise<PushResponse> => {
+      if (push.mock.calls.length === 1) return { results: [{
+        operationId: operations[0]!.operationId, status: 'conflict',
+        conflictId: '00000000-0000-4000-8000-000000000401', record: remote,
+      }] }
+      return { results: [{
+        operationId: operations[0]!.operationId, status: 'applied', revision: 3,
+        record: { ...remote, revision: 3, data: operations[0]!.data! },
+      }] }
+    })
+    const engine = new SyncEngine(engineOptions(repository, gateway({ push }), {
+      operationId: () => '00000000-0000-4000-8000-000000000402',
+    }))
+
+    await engine.syncNow()
+    const retry = push.mock.calls[1]![0].operations[0]!
+    expect(retry).toMatchObject({
+      operationId: '00000000-0000-4000-8000-000000000402', baseRevision: 2,
+      data: { title: 'Local', done: true, date: '2026-10-14', category: 'work' },
+    })
+    expect(repository.state.tasks).toEqual([expect.objectContaining({ title: 'Local', done: true })])
+    expect(repository.pending).toEqual([])
+    expect(repository.metadata.revisions['tasks:task-local']).toBe(3)
+  })
+
+  it('activates the remote version while durably preserving a same-field conflict', async () => {
+    const repository = new MemoryRepository()
+    const base = {
+      collection: 'tasks' as const, recordId: 'task-local', revision: 1,
+      modifiedAt: operation.changedAt, deletedAt: null,
+      data: { title: 'Base', done: false, date: '2026-10-14', category: 'work' },
+    }
+    const remote = { ...base, revision: 2, data: { ...base.data, title: 'Remote' } }
+    repository.state.tasks = [{ id: 'task-local', ...operation.data } as AppState['tasks'][number]]
+    repository.pending = [{ ...operation, kind: 'patch', baseRevision: 1, changedFields: ['title'] }]
+    repository.metadata = {
+      workspaceId: 'account:user_a', pullCursor: 'cursor-0',
+      revisions: { 'tasks:task-local': 1 }, bases: { 'tasks:task-local': base },
+    }
+    const syncGateway = gateway({ push: vi.fn(async () => ({ results: [{
+      operationId: operation.operationId, status: 'conflict' as const,
+      conflictId: '00000000-0000-4000-8000-000000000403', record: remote,
+    }] })) })
+
+    const engine = new SyncEngine(engineOptions(repository, syncGateway))
+    await engine.syncNow()
+    expect(repository.state.tasks).toEqual([expect.objectContaining({ title: 'Remote' })])
+    expect(repository.metadata.conflicts).toEqual([expect.objectContaining({
+      conflictId: '00000000-0000-4000-8000-000000000403', reason: 'same-field-change',
+      local: expect.objectContaining({ data: expect.objectContaining({ title: 'Local' }) }),
+    })])
+    expect(engine.getState()).toMatchObject({ status: 'error', errorCode: 'CONFLICT_REQUIRES_ATTENTION' })
   })
 })
 

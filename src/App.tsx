@@ -404,7 +404,7 @@ export default function App({ environment }: { environment: PublicEnvironment })
                 changedAt: new Date().toISOString(),
                 operationId: () => uid(),
                 baseRevisions: new Map(Object.entries(metadata.revisions)),
-              }).filter((operation) => operation.collection === "tasks");
+              });
               try {
                 await repository.commit(
                   workspaceId.current,

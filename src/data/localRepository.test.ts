@@ -2,6 +2,7 @@ import { IDBFactory } from 'fake-indexeddb'
 import { describe, expect, it } from 'vitest'
 
 import { defaultState, type AppState } from '../core'
+import type { PreservedConflict } from '../sync/conflicts'
 import type { SyncOperation } from '../sync/types'
 import { LocalRepository } from './localRepository'
 
@@ -105,6 +106,37 @@ describe('LocalRepository', () => {
 
     expect(await repository.readPending('account:user_a', 10)).toEqual([])
     expect(await repository.loadMetadata('account:user_a')).toMatchObject({ pullCursor: 'cursor-one' })
+    repository.close()
+  })
+
+  it('atomically replaces a conflicted operation while storing its base and recovery record', async () => {
+    const repository = await LocalRepository.open({ indexedDB: new IDBFactory() })
+    const state = defaultState()
+    const original = operation()
+    const retry = { ...operation('00000000-0000-4000-8000-000000000002'), baseRevision: 2 }
+    const remote = {
+      collection: 'tasks' as const, recordId: 'task-one', revision: 2, modifiedAt: changedAt, deletedAt: null,
+      data: { title: 'Remote', done: false, date: '2026-10-14', category: 'study' },
+    }
+    const conflict: PreservedConflict = {
+      conflictId: '00000000-0000-4000-8000-000000000003', reason: 'same-field-change', preserveAsSibling: false,
+      base: null, local: original, remote,
+    }
+    await repository.commit('account:user_a', null, state, [original])
+    await repository.acknowledge('account:user_a', {
+      operationIds: [original.operationId],
+      retryOperations: [retry],
+      baseRecords: [remote],
+      conflicts: [conflict],
+      revisions: { 'tasks:task-one': 2 },
+    })
+
+    expect(await repository.readPending('account:user_a', 10)).toEqual([retry])
+    expect(await repository.loadMetadata('account:user_a')).toMatchObject({
+      bases: { 'tasks:task-one': remote },
+      conflicts: [conflict],
+      revisions: { 'tasks:task-one': 2 },
+    })
     repository.close()
   })
 

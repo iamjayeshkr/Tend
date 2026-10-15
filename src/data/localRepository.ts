@@ -1,5 +1,6 @@
 import type { AppState } from '../core'
-import type { SyncOperation } from '../sync/types'
+import type { PreservedConflict } from '../sync/conflicts'
+import type { RemoteRecord, SyncOperation } from '../sync/types'
 import {
   LEGACY_SNAPSHOT_KEY,
   STORES,
@@ -18,11 +19,16 @@ export type WorkspaceMetadata = {
   workspaceId: string
   pullCursor?: string
   revisions: Record<string, number>
+  bases?: Record<string, RemoteRecord>
+  conflicts?: PreservedConflict[]
 }
 
 export type AcknowledgeResult = {
   operationIds: string[]
   revisions?: Record<string, number>
+  retryOperations?: SyncOperation[]
+  baseRecords?: RemoteRecord[]
+  conflicts?: PreservedConflict[]
 }
 
 type RepositoryEnvironment = {
@@ -38,6 +44,7 @@ type QueuedOperation = {
 
 const storageKey = (workspaceId: string) => `workspace:${workspaceId}`
 const queueKey = (workspaceId: string, operationId: string) => `${workspaceId}:${operationId}`
+const metadataRecordKey = (record: Pick<RemoteRecord, 'collection' | 'recordId'>) => `${record.collection}:${record.recordId}`
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
@@ -190,16 +197,33 @@ export class LocalRepository {
     if (!this.database) return Promise.reject(new Error('The localStorage fallback has no durable queue.'))
     const acknowledged = [...result.operationIds]
     const revisions = { ...(result.revisions ?? {}) }
+    const retryOperations = clone(result.retryOperations ?? [])
+    const baseRecords = clone(result.baseRecords ?? [])
+    const conflicts = clone(result.conflicts ?? [])
     return this.enqueue(async () => {
       const transaction = this.database!.transaction([STORES.operations, STORES.metadata], 'readwrite')
       const operations = transaction.objectStore(STORES.operations)
       const metadataStore = transaction.objectStore(STORES.metadata)
       for (const operationId of acknowledged) operations.delete(queueKey(workspaceId, operationId))
+      for (const operation of retryOperations) {
+        operations.put({
+          queueKey: queueKey(workspaceId, operation.operationId),
+          workspaceId,
+          operation,
+        } satisfies QueuedOperation)
+      }
       const existing = await requestResult(metadataStore.get(workspaceId)) as WorkspaceMetadata | undefined
+      const bases = { ...(existing?.bases ?? {}) }
+      for (const record of baseRecords) bases[metadataRecordKey(record)] = record
+      const conflictsById = new Map(
+        [...(existing?.conflicts ?? []), ...conflicts].map((conflict) => [conflict.conflictId, conflict]),
+      )
       metadataStore.put({
         workspaceId,
         pullCursor: pullCursor ?? existing?.pullCursor,
         revisions: { ...(existing?.revisions ?? {}), ...revisions },
+        ...(Object.keys(bases).length === 0 ? {} : { bases }),
+        ...(conflictsById.size === 0 ? {} : { conflicts: [...conflictsById.values()] }),
       } satisfies WorkspaceMetadata)
       await transactionComplete(transaction)
     })

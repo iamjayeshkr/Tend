@@ -1,6 +1,7 @@
 import type { TendIdentity } from '../auth/types'
 import { defaultState, type AppState } from '../core'
 import type { AcknowledgeResult, LocalRepository, WorkspaceMetadata } from '../data/localRepository'
+import { resolveConflict, type PreservedConflict } from './conflicts'
 import { GatewayError, type SyncGateway } from './gatewayClient'
 import { recordKey, recordsToState } from './recordAdapter'
 import type { DeviceRegistration, PullResponse, RemoteRecord, SyncOperation } from './types'
@@ -8,6 +9,7 @@ import type { DeviceRegistration, PullResponse, RemoteRecord, SyncOperation } fr
 const PUSH_BATCH_SIZE = 100
 const PULL_PAGE_SIZE = 500
 const MAX_PULL_PAGES = 10_000
+const MAX_PUSH_BATCHES = 10_000
 const MAX_BACKOFF_MS = 60_000
 
 export type SyncStatus = 'stopped' | 'idle' | 'syncing' | 'offline' | 'backoff' | 'error'
@@ -19,6 +21,7 @@ export type SyncState = {
   lastSyncedAt?: number
   nextRetryAt?: number
   errorCode?: string
+  conflictCount?: number
 }
 
 export type SyncRepository = Pick<
@@ -48,6 +51,7 @@ export type SyncEngineOptions = {
   random?: () => number
   now?: () => number
   onWorkspaceUpdated?: (state: AppState) => void
+  operationId?: () => string
 }
 
 function browserNetwork(): SyncEngineNetwork {
@@ -108,6 +112,7 @@ export class SyncEngine {
   private readonly scheduler: SyncEngineScheduler
   private readonly random: () => number
   private readonly now: () => number
+  private readonly operationId: () => string
   private readonly listeners = new Set<(state: SyncState) => void>()
   private state: SyncState = { status: 'stopped', pendingCount: 0, attempt: 0 }
   private started = false
@@ -122,6 +127,7 @@ export class SyncEngine {
     this.scheduler = options.scheduler ?? browserScheduler()
     this.random = options.random ?? Math.random
     this.now = options.now ?? Date.now
+    this.operationId = options.operationId ?? (() => crypto.randomUUID())
   }
 
   getState(): SyncState {
@@ -197,9 +203,13 @@ export class SyncEngine {
     const run = this.runCycle(controller.signal)
       .then(async () => {
         const pendingCount = (await this.options.repository.readPending(this.options.workspaceId, 101)).length
+        const metadata = await this.options.repository.loadMetadata(this.options.workspaceId)
+        const conflictCount = metadata.conflicts?.length ?? 0
         this.update({
-          status: 'idle', pendingCount, attempt: 0, lastSyncedAt: this.now(),
-          nextRetryAt: undefined, errorCode: undefined,
+          status: conflictCount > 0 ? 'error' : 'idle', pendingCount, attempt: 0,
+          lastSyncedAt: this.now(), nextRetryAt: undefined,
+          errorCode: conflictCount > 0 ? 'CONFLICT_REQUIRES_ATTENTION' : undefined,
+          conflictCount,
         })
       })
       .catch((error: unknown) => this.handleFailure(error, controller.signal))
@@ -221,7 +231,7 @@ export class SyncEngine {
   }
 
   private async pushPending(signal: AbortSignal): Promise<void> {
-    while (!signal.aborted) {
+    for (let batchIndex = 0; batchIndex < MAX_PUSH_BATCHES && !signal.aborted; batchIndex += 1) {
       const operations = await this.options.repository.readPending(this.options.workspaceId, PUSH_BATCH_SIZE)
       this.update({ pendingCount: operations.length })
       if (operations.length === 0) return
@@ -237,19 +247,87 @@ export class SyncEngine {
 
       const revisions: Record<string, number> = {}
       const operationIds: string[] = []
+      const retryOperations: SyncOperation[] = []
+      const baseRecords: RemoteRecord[] = []
+      const conflicts: PreservedConflict[] = []
+      const activeRecords: RemoteRecord[] = []
+      const metadata = await this.options.repository.loadMetadata(this.options.workspaceId)
       for (const operation of operations) {
         const result = resultById.get(operation.operationId)
         if (!result) throw new GatewayError({ status: 502, code: 'INVALID_RESPONSE', retryable: true })
         operationIds.push(operation.operationId)
+        const key = recordKey(operation.collection, operation.recordId)
+        if (result.status === 'conflict') {
+          if (!result.record) throw new GatewayError({ status: 502, code: 'INVALID_RESPONSE', retryable: true })
+          const resolution = resolveConflict(metadata.bases?.[key], operation, result.record)
+          revisions[key] = result.record.revision
+          baseRecords.push(result.record)
+          if (resolution.kind === 'retry') {
+            retryOperations.push({ ...resolution.operation, operationId: this.operationId() })
+            activeRecords.push({
+              ...result.record,
+              deletedAt: null,
+              data: structuredClone(resolution.operation.data ?? {}),
+            })
+          } else {
+            activeRecords.push(result.record)
+            if (resolution.kind === 'preserve') {
+              const conflictId = result.conflictId ?? operation.operationId
+              conflicts.push({ ...resolution.conflict, conflictId })
+              if (resolution.conflict.preserveAsSibling && operation.data) {
+                const sourceTitle = typeof operation.data.title === 'string' ? operation.data.title : undefined
+                const suffix = ' (conflict copy)'
+                const siblingData = {
+                  ...structuredClone(operation.data),
+                  ...(sourceTitle === undefined ? {} : { title: `${sourceTitle.slice(0, 160 - suffix.length)}${suffix}` }),
+                }
+                retryOperations.push({
+                  operationId: this.operationId(), collection: 'ideas', recordId: conflictId,
+                  kind: 'put', baseRevision: 0, changedAt: operation.changedAt, data: siblingData,
+                })
+                activeRecords.push({
+                  collection: 'ideas', recordId: conflictId, revision: 1,
+                  modifiedAt: operation.changedAt, deletedAt: null, data: siblingData,
+                })
+              }
+            }
+          }
+          continue
+        }
+
         const revision = result.record?.revision ?? result.revision
-        if (revision !== undefined) revisions[recordKey(operation.collection, operation.recordId)] = revision
+        if (revision === undefined) throw new GatewayError({ status: 502, code: 'INVALID_RESPONSE', retryable: true })
+        revisions[key] = revision
+        baseRecords.push(result.record ?? {
+          collection: operation.collection,
+          recordId: operation.recordId,
+          revision,
+          modifiedAt: operation.changedAt,
+          deletedAt: operation.kind === 'delete' ? operation.changedAt : null,
+          data: operation.kind === 'delete' ? null : structuredClone(operation.data ?? {}),
+        })
       }
-      await this.options.repository.acknowledge(this.options.workspaceId, { operationIds, revisions })
+
+      let updatedState: AppState | null = null
+      if (activeRecords.length > 0) {
+        const previous = await this.options.repository.loadWorkspace(this.options.workspaceId)
+        updatedState = recordsToState(previous ?? defaultState(), activeRecords)
+        await this.options.repository.commit(this.options.workspaceId, previous, updatedState, [])
+      }
+      await this.options.repository.acknowledge(this.options.workspaceId, {
+        operationIds, revisions, retryOperations, baseRecords, conflicts,
+      })
+      if (updatedState) this.options.onWorkspaceUpdated?.(updatedState)
     }
+    if (!signal.aborted) throw new GatewayError({ status: 502, code: 'INVALID_RESPONSE', retryable: true })
   }
 
   private async pullIncremental(signal: AbortSignal): Promise<void> {
     const metadata = await this.options.repository.loadMetadata(this.options.workspaceId)
+    if (metadata.pullCursor === undefined) {
+      await this.fullReconcile(signal)
+      return
+    }
     try {
       await this.pullAndCommitPages(metadata.pullCursor, signal)
     } catch (error) {
@@ -285,7 +363,7 @@ export class SyncEngine {
     await this.options.repository.commit(this.options.workspaceId, previous, next, [])
     await this.options.repository.acknowledge(
       this.options.workspaceId,
-      { operationIds: [], revisions: revisionsFor(page.records) },
+      { operationIds: [], revisions: revisionsFor(page.records), baseRecords: page.records },
       page.cursor,
     )
     this.options.onWorkspaceUpdated?.(next)
@@ -311,7 +389,7 @@ export class SyncEngine {
         await this.options.repository.commit(this.options.workspaceId, previous, next, [])
         await this.options.repository.acknowledge(
           this.options.workspaceId,
-          { operationIds: [], revisions: revisionsFor(records) },
+          { operationIds: [], revisions: revisionsFor(records), baseRecords: records },
           cursor,
         )
         this.options.onWorkspaceUpdated?.(next)
