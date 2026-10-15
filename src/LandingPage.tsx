@@ -150,9 +150,34 @@ export function LandingPage({
 
   // Interactive Hero Demo State
   const [demoChecked, setDemoChecked] = useState(false)
+  const [demoBurst, setDemoBurst] = useState(false)
   const [demoTimerRunning, setDemoTimerRunning] = useState(false)
   const [demoSecondsLeft, setDemoSecondsLeft] = useState(25 * 60)
   const [activeFeatureTab, setActiveFeatureTab] = useState<'shield' | 'wake' | 'notebook' | 'sync'>('shield')
+
+  // Interactive Tab Demo Simulations
+  const [shieldInterceptTriggered, setShieldInterceptTriggered] = useState(false)
+  const [wakeSimulationMode, setWakeSimulationMode] = useState<'awake' | 'resleep'>('awake')
+  const [syncPacketPulse, setSyncPacketPulse] = useState(false)
+
+  const handleToggleDemoCheck = () => {
+    const next = !demoChecked
+    setDemoChecked(next)
+    if (next) {
+      setDemoBurst(true)
+      setTimeout(() => setDemoBurst(false), 900)
+    }
+  }
+
+  const triggerShieldSimulation = () => {
+    setShieldInterceptTriggered(true)
+    setTimeout(() => setShieldInterceptTriggered(false), 900)
+  }
+
+  const triggerSyncSimulation = () => {
+    setSyncPacketPulse(true)
+    setTimeout(() => setSyncPacketPulse(false), 1400)
+  }
 
   // Interactive Android phone mockup widget state
   const [phoneTasks, setPhoneTasks] = useState([
@@ -193,6 +218,10 @@ export function LandingPage({
     const secs = totalSeconds % 60
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
   }
+
+  const timerCircumference = 2 * Math.PI * 18 // ~113.1
+  const timerProgressRatio = demoSecondsLeft / (25 * 60)
+  const timerDashoffset = timerCircumference * (1 - timerProgressRatio)
 
   return (
     <div className="landing-container">
@@ -339,8 +368,47 @@ export function LandingPage({
           </div>
         </div>
 
-        {/* Live Interactive Hero Demo Card */}
+        {/* Live Interactive Hero Demo Card with Layered Satellites */}
         <div className="landing-hero-demo-wrapper">
+          {/* Ambient Warmth Glow Mesh */}
+          <div className="hero-demo-aura" aria-hidden="true" />
+
+          {/* Floating Satellite Card: Top Left */}
+          <div
+            className="hero-floating-badge badge-top-left"
+            style={{
+              transform: 'translate(calc(var(--hero-px, 0px) * 0.45), calc(var(--hero-py, 0px) * 0.45)) rotate(-3.5deg)',
+            }}
+            aria-hidden="true"
+          >
+            <div className="badge-washi-tape" />
+            <div className="badge-icon-wrap shield-wrap">
+              <Shield size={14} />
+            </div>
+            <div className="badge-text-col">
+              <strong>App Shield Active</strong>
+              <small><span className="live-mini-dot" /> Instagram & Shorts locked</small>
+            </div>
+          </div>
+
+          {/* Floating Satellite Card: Bottom Right */}
+          <div
+            className="hero-floating-badge badge-bottom-right"
+            style={{
+              transform: 'translate(calc(var(--hero-px, 0px) * -0.55), calc(var(--hero-py, 0px) * -0.55)) rotate(2.5deg)',
+            }}
+            aria-hidden="true"
+          >
+            <div className="badge-washi-tape" />
+            <div className="badge-icon-wrap sync-wrap">
+              <Cloud size={14} />
+            </div>
+            <div className="badge-text-col">
+              <strong>Encrypted Sync</strong>
+              <small><span className="live-mini-dot sync-dot" /> 3 devices in harmony</small>
+            </div>
+          </div>
+
           <div
             className="hero-demo-card interactive-tilt-card"
             onMouseMove={handleCardMouseMove}
@@ -354,15 +422,25 @@ export function LandingPage({
               <span className="demo-clock">8:45 AM</span>
             </div>
 
-            {/* Interactive Task Box */}
+            {/* Interactive Task Box with Confetti Micro-Burst */}
             <div className="demo-task-box">
-              <button
-                className={`demo-checkbox ${demoChecked ? 'checked' : ''}`}
-                onClick={() => setDemoChecked(!demoChecked)}
-                aria-label="Toggle task completion demo"
-              >
-                {demoChecked && <Check size={14} />}
-              </button>
+              <div className="demo-checkbox-wrapper">
+                <button
+                  className={`demo-checkbox ${demoChecked ? 'checked' : ''}`}
+                  onClick={handleToggleDemoCheck}
+                  aria-label="Toggle task completion demo"
+                >
+                  {demoChecked && <Check size={14} className="check-icon-svg" />}
+                </button>
+                {demoBurst && (
+                  <div className="demo-confetti-burst" aria-hidden="true">
+                    <span className="burst-leaf l-1">🌿</span>
+                    <span className="burst-leaf l-2">✨</span>
+                    <span className="burst-leaf l-3">🍃</span>
+                    <span className="burst-leaf l-4">🌱</span>
+                  </div>
+                )}
+              </div>
               <div className="demo-task-text">
                 <strong className={demoChecked ? 'task-done' : ''}>
                   Finish Chapter 4 & Draft Systems Paper
@@ -372,11 +450,31 @@ export function LandingPage({
               <span className="demo-badge">25m focus</span>
             </div>
 
-            {/* Interactive Focus Timer Simulator */}
+            {/* Interactive Focus Timer Simulator with Circular Progress Gauge */}
             <div className="demo-timer-box">
               <div className="demo-timer-dial">
-                <Timer size={24} className={demoTimerRunning ? 'timer-active-icon' : ''} />
-                <span className="demo-timer-digits">{formatDemoTimer(demoSecondsLeft)}</span>
+                <div className="timer-gauge-wrapper">
+                  <svg className="timer-gauge-svg" viewBox="0 0 44 44" aria-hidden="true">
+                    <circle className="gauge-track" cx="22" cy="22" r="18" />
+                    <circle
+                      className={`gauge-indicator ${demoTimerRunning ? 'active' : ''}`}
+                      cx="22"
+                      cy="22"
+                      r="18"
+                      strokeDasharray={timerCircumference}
+                      strokeDashoffset={timerDashoffset}
+                    />
+                  </svg>
+                  <Timer size={19} className={demoTimerRunning ? 'timer-active-icon' : ''} />
+                </div>
+                <div className="timer-digits-col">
+                  <span className={`demo-timer-digits ${demoTimerRunning ? 'digits-running' : ''}`}>
+                    {formatDemoTimer(demoSecondsLeft)}
+                  </span>
+                  <small className="timer-sub-status">
+                    {demoTimerRunning ? 'Deep Focus Session in Progress' : '25-minute Pomodoro block'}
+                  </small>
+                </div>
               </div>
               <div className="demo-timer-controls">
                 <button
@@ -437,6 +535,9 @@ export function LandingPage({
 
         <div className="philosophy-loop-container reveal-on-scroll reveal-fade-up">
           <div className="loop-step step-1">
+            <div className="step-badge-icon">
+              <Leaf size={15} />
+            </div>
             <span className="step-num">01</span>
             <div className="step-content">
               <strong>Commit Deliberately</strong>
@@ -445,6 +546,9 @@ export function LandingPage({
           </div>
           <div className="loop-arrow" aria-hidden="true">→</div>
           <div className="loop-step step-2">
+            <div className="step-badge-icon">
+              <Shield size={15} />
+            </div>
             <span className="step-num">02</span>
             <div className="step-content">
               <strong>Self-Authorized Shield</strong>
@@ -453,6 +557,9 @@ export function LandingPage({
           </div>
           <div className="loop-arrow" aria-hidden="true">→</div>
           <div className="loop-step step-3">
+            <div className="step-badge-icon">
+              <Sun size={15} />
+            </div>
             <span className="step-num">03</span>
             <div className="step-content">
               <strong>Confirmed Awake Guard</strong>
@@ -461,6 +568,9 @@ export function LandingPage({
           </div>
           <div className="loop-arrow" aria-hidden="true">→</div>
           <div className="loop-step step-4">
+            <div className="step-badge-icon">
+              <BookOpen size={15} />
+            </div>
             <span className="step-num">04</span>
             <div className="step-content">
               <strong>Prove & Reflect</strong>
@@ -475,7 +585,11 @@ export function LandingPage({
             onMouseMove={handleCardMouseMove}
             onMouseLeave={handleCardMouseLeave}
           >
-            <div className="card-stamp"><Shield size={20} /><span>STRICT MODE</span></div>
+            <div className="card-stamp">
+              <div className="stamp-halo" aria-hidden="true" />
+              <Shield size={19} />
+              <span>STRICT MODE</span>
+            </div>
             <h3>Self-Authorized, Not Authoritarian</h3>
             <p>
               Tend does not hijack your phone. You set your own boundaries voluntarily. When weakness strikes, Tend gently holds the lock you asked for until your commitments are complete.
@@ -487,7 +601,11 @@ export function LandingPage({
             onMouseMove={handleCardMouseMove}
             onMouseLeave={handleCardMouseLeave}
           >
-            <div className="card-stamp"><Sun size={20} /><span>AWAKE FUSION</span></div>
+            <div className="card-stamp">
+              <div className="stamp-halo" aria-hidden="true" />
+              <Sun size={19} />
+              <span>AWAKE FUSION</span>
+            </div>
             <h3>Confirmed Awake Time vs Unlock Timer</h3>
             <p>
               A naive 1-hour timer expires while you sleep. Tend fuses Google Sleep API and device motion to count genuine awake minutes, ensuring bed doomscrolling is stopped even after naps.
@@ -499,7 +617,11 @@ export function LandingPage({
             onMouseMove={handleCardMouseMove}
             onMouseLeave={handleCardMouseLeave}
           >
-            <div className="card-stamp"><Leaf size={20} /><span>ZERO TELEMETRY</span></div>
+            <div className="card-stamp">
+              <div className="stamp-halo" aria-hidden="true" />
+              <Leaf size={19} />
+              <span>ZERO TELEMETRY</span>
+            </div>
             <h3>Local Sovereignty & Deep Privacy</h3>
             <p>
               No third-party trackers, no behavioral ads, and no selling your attention. Your notes and rhythms remain on your device in offline IndexedDB / SQLite, with encrypted sync when you choose.
@@ -527,7 +649,7 @@ export function LandingPage({
             className={`feature-tab-btn ${activeFeatureTab === 'shield' ? 'active' : ''}`}
             onClick={() => setActiveFeatureTab('shield')}
           >
-            <Shield size={18} />
+            <Shield size={18} className="tab-icon" />
             <span>App Shield & Strict Mode</span>
           </button>
           <button
@@ -536,7 +658,7 @@ export function LandingPage({
             className={`feature-tab-btn ${activeFeatureTab === 'wake' ? 'active' : ''}`}
             onClick={() => setActiveFeatureTab('wake')}
           >
-            <Sun size={18} />
+            <Sun size={18} className="tab-icon" />
             <span>Morning Wake Engine</span>
           </button>
           <button
@@ -545,7 +667,7 @@ export function LandingPage({
             className={`feature-tab-btn ${activeFeatureTab === 'notebook' ? 'active' : ''}`}
             onClick={() => setActiveFeatureTab('notebook')}
           >
-            <BookOpen size={18} />
+            <BookOpen size={18} className="tab-icon" />
             <span>Reflection Notebook</span>
           </button>
           <button
@@ -554,7 +676,7 @@ export function LandingPage({
             className={`feature-tab-btn ${activeFeatureTab === 'sync' ? 'active' : ''}`}
             onClick={() => setActiveFeatureTab('sync')}
           >
-            <Cloud size={18} />
+            <Cloud size={18} className="tab-icon" />
             <span>Real-Time Multi-Device Sync</span>
           </button>
         </div>
@@ -575,10 +697,20 @@ export function LandingPage({
                   <li><strong>Safety guarantees:</strong> Phone calls, dialer, Android Settings, and emergency apps are strictly exempt.</li>
                   <li><strong>Self/Parental PIN:</strong> Optional 4-digit PIN prevents impulsive bypass during moments of weakness.</li>
                 </ul>
+                <div className="panel-interactive-action">
+                  <button
+                    type="button"
+                    className="outline interactive-sim-btn"
+                    onClick={triggerShieldSimulation}
+                  >
+                    <Lock size={14} />
+                    <span>{shieldInterceptTriggered ? 'Boundary Intercepted ✋' : 'Test Shield Lock Simulation'}</span>
+                  </button>
+                </div>
               </div>
               <div className="panel-visual shield-visual">
                 <div
-                  className="mockup-card interactive-tilt-card"
+                  className={`mockup-card interactive-tilt-card ${shieldInterceptTriggered ? 'shield-shaking' : ''}`}
                   onMouseMove={handleCardMouseMove}
                   onMouseLeave={handleCardMouseLeave}
                 >
@@ -606,6 +738,16 @@ export function LandingPage({
                   <li><strong>Resleep Resilience:</strong> Detects if you fell back to sleep for &ge; 45 minutes and resets/preserves your protected hour.</li>
                   <li><strong>Untouched Phone Grace:</strong> If you get ready without touching your phone for 60m, you won’t be locked out when you first pick it up.</li>
                 </ul>
+                <div className="panel-interactive-action">
+                  <button
+                    type="button"
+                    className="outline interactive-sim-btn"
+                    onClick={() => setWakeSimulationMode((m) => (m === 'awake' ? 'resleep' : 'awake'))}
+                  >
+                    <Sun size={14} />
+                    <span>Mode: {wakeSimulationMode === 'awake' ? 'Awake Active (42m counted)' : 'Resleep Detected (Protection Held)'}</span>
+                  </button>
+                </div>
               </div>
               <div className="panel-visual wake-visual">
                 <div
@@ -614,12 +756,21 @@ export function LandingPage({
                   onMouseLeave={handleCardMouseLeave}
                 >
                   <div className="mockup-tag">tend / morning focus session</div>
-                  <div className="mockup-symbol">🌅</div>
-                  <h4>Rise and shine. Your morning is protected.</h4>
+                  <div className="mockup-symbol sun-rise-icon">🌅</div>
+                  <h4>
+                    {wakeSimulationMode === 'awake'
+                      ? 'Rise and shine. Your morning is protected.'
+                      : 'Resleep detected · Shield preserved for wakefulness.'}
+                  </h4>
                   <div className="progress-bar-container">
-                    <div className="progress-fill" style={{ width: '70%' }} />
+                    <div
+                      className="progress-fill"
+                      style={{ width: wakeSimulationMode === 'awake' ? '70%' : '35%' }}
+                    />
                   </div>
-                  <small>Confirmed Awake Time: 42m / 60m (18m remaining)</small>
+                  <small>
+                    Confirmed Awake Time: {wakeSimulationMode === 'awake' ? '42m / 60m (18m remaining)' : '21m / 60m (Sensor Held)'}
+                  </small>
                   <p>Distracting apps remain shielded so you can start your day with intention and clarity.</p>
                 </div>
               </div>
@@ -655,7 +806,9 @@ export function LandingPage({
                     The hardest part isn’t the work itself. It’s sitting with the silence before the momentum starts.
                     Turning off the chatter outside made room for this chapter to breathe…
                   </p>
-                  <div className="notebook-corner-doodle" title="Twinkle doodle"><Star /></div>
+                  <div className="notebook-corner-doodle" title="Twinkle star doodle">
+                    <Star />
+                  </div>
                 </div>
               </div>
             </div>
@@ -676,6 +829,16 @@ export function LandingPage({
                   <li><strong>Two-Device Convergence:</strong> Tested against cross-device simultaneous edits with automated conflict resolution.</li>
                   <li><strong>Seamless Guest Migration:</strong> Start immediately as a guest. When you sign in, all local tasks and journals migrate seamlessly with atomic preview.</li>
                 </ul>
+                <div className="panel-interactive-action">
+                  <button
+                    type="button"
+                    className="outline interactive-sim-btn"
+                    onClick={triggerSyncSimulation}
+                  >
+                    <Cloud size={14} />
+                    <span>{syncPacketPulse ? 'Streaming Delta Sync Revision…' : 'Trigger Real-Time Sync Pulse'}</span>
+                  </button>
+                </div>
               </div>
               <div className="panel-visual sync-visual">
                 <div
@@ -684,15 +847,15 @@ export function LandingPage({
                   onMouseLeave={handleCardMouseLeave}
                 >
                   <div className="sync-nodes">
-                    <div className="sync-node active">
+                    <div className={`sync-node active ${syncPacketPulse ? 'syncing-pulse' : ''}`}>
                       <Laptop size={22} />
                       <span>Desktop Web</span>
                       <small className="sync-status-pill">Synced ✓</small>
                     </div>
                     <div className="sync-connector">
-                      <div className="pulse-dot" />
+                      <div className={`pulse-dot ${syncPacketPulse ? 'burst-stream' : ''}`} />
                     </div>
-                    <div className="sync-node active">
+                    <div className={`sync-node active ${syncPacketPulse ? 'syncing-pulse' : ''}`}>
                       <Smartphone size={22} />
                       <span>Android App</span>
                       <small className="sync-status-pill">Active now</small>
@@ -753,10 +916,15 @@ export function LandingPage({
 
           <div className="android-card-art">
             <div className="phone-mockup-frame">
+              <div className="phone-screen-sheen" aria-hidden="true" />
               <div className="phone-screen-content">
+                <div className="phone-dynamic-island" />
                 <div className="phone-header-bar">
                   <span>9:41</span>
-                  <span>100% 🔋</span>
+                  <div className="phone-header-status">
+                    <span className="phone-awake-tag"><Sun size={10} /> 42m</span>
+                    <span className="phone-battery-pill"><span className="battery-level" /> 100% ⚡</span>
+                  </div>
                 </div>
                 <div className="phone-widget-preview">
                   <div className="widget-header">
@@ -782,6 +950,11 @@ export function LandingPage({
                   >
                     + Add Quick Task
                   </button>
+                  {phoneTaskCount > 0 && (
+                    <div className="phone-quick-toast" aria-live="polite">
+                      <Check size={11} /> Quick task synced to device
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

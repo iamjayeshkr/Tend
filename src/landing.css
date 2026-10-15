@@ -618,10 +618,142 @@ html {
   z-index: 1;
 }
 
-/* Hero Demo Mockup Card */
+/* Hero Demo Mockup Card & Satellites */
 .landing-hero-demo-wrapper {
   position: relative;
   z-index: 2;
+}
+
+/* Organic Ambient Warmth Glow Mesh behind Hero Card */
+.hero-demo-aura {
+  position: absolute;
+  inset: -35px -25px;
+  border-radius: 42px;
+  background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(46, 82, 62, 0.14), rgba(212, 168, 83, 0.09) 45%, transparent 72%);
+  filter: blur(28px);
+  pointer-events: none;
+  z-index: 0;
+  animation: auraBreathe 6.5s ease-in-out infinite alternate;
+}
+
+@keyframes auraBreathe {
+  0% {
+    opacity: 0.55;
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 0.95;
+    transform: scale(1.04);
+  }
+}
+
+/* Floating Satellite Micro-Cards with Washi Tape */
+.hero-floating-badge {
+  position: absolute;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(10px);
+  border: 1px solid #DFD9C6;
+  border-radius: 14px;
+  box-shadow: 0 10px 28px rgba(31, 60, 44, 0.12), 0 2px 6px rgba(31, 60, 44, 0.04);
+  transition: transform 0.25s var(--ease-spring), box-shadow 0.25s ease;
+  pointer-events: auto;
+}
+
+.hero-floating-badge:hover {
+  box-shadow: 0 14px 36px rgba(31, 60, 44, 0.18);
+}
+
+.hero-floating-badge.badge-top-left {
+  top: -16px;
+  left: -18px;
+}
+
+.hero-floating-badge.badge-bottom-right {
+  bottom: -16px;
+  right: -18px;
+}
+
+.badge-washi-tape {
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 44px;
+  height: 12px;
+  background: rgba(212, 168, 83, 0.45);
+  border-radius: 2px;
+  opacity: 0.85;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5);
+}
+
+.badge-icon-wrap {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.badge-icon-wrap.shield-wrap {
+  background: #E8F0EA;
+  color: #2E523E;
+}
+
+.badge-icon-wrap.sync-wrap {
+  background: #EBF2EC;
+  color: #28543B;
+}
+
+.badge-text-col {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  line-height: 1.25;
+}
+
+.badge-text-col strong {
+  font-size: 12px;
+  color: var(--landing-ink);
+  font-weight: 700;
+}
+
+.badge-text-col small {
+  font-size: 10.5px;
+  color: var(--landing-muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.live-mini-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #388E3C;
+  display: inline-block;
+  animation: dotBlink 1.8s ease-in-out infinite;
+}
+
+.live-mini-dot.sync-dot {
+  background: #2E523E;
+}
+
+@keyframes dotBlink {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
 }
 
 .hero-demo-card {
@@ -635,6 +767,7 @@ html {
   opacity: 0;
   transform: scale(0.96) translateY(14px);
   animation: heroCardIn 0.9s var(--ease-spring) forwards 0.2s;
+  z-index: 1;
 }
 
 @keyframes heroCardIn {
@@ -647,6 +780,407 @@ html {
 .hero-demo-card:hover {
   box-shadow: 0 16px 42px rgba(31, 60, 44, 0.12), 0 3px 8px rgba(31, 60, 44, 0.05);
   border-color: #DCD7C3;
+}
+
+/* Hero Demo Card Internal Components */
+.demo-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed #DDD8C8;
+}
+
+.demo-header-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--landing-pine);
+  background: #E8F0EA;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.live-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #2E523E;
+  box-shadow: 0 0 0 0 rgba(46, 82, 62, 0.4);
+  animation: pulseRipple 2s infinite;
+  display: inline-block;
+}
+
+@keyframes pulseRipple {
+  0% {
+    box-shadow: 0 0 0 0 rgba(46, 82, 62, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(46, 82, 62, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(46, 82, 62, 0);
+  }
+}
+
+.demo-clock {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--landing-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Interactive Task Box */
+.demo-task-box {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: #FFFFFF;
+  border: 1px solid var(--landing-border);
+  border-radius: 14px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(31, 60, 44, 0.04);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s var(--ease-smooth);
+  position: relative;
+}
+
+.demo-task-box:hover {
+  border-color: #D6CEB6;
+  box-shadow: 0 4px 12px rgba(31, 60, 44, 0.07);
+}
+
+.demo-checkbox-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.demo-checkbox {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 2px solid #C4D3C7;
+  background: #FAF9F5;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  color: #FAF8EF;
+  transition: all 0.2s var(--ease-spring);
+  padding: 0;
+}
+
+.demo-checkbox:hover {
+  border-color: var(--landing-pine);
+  background: #F0F5F1;
+  transform: scale(1.08);
+}
+
+.demo-checkbox.checked {
+  background: var(--landing-pine);
+  border-color: var(--landing-pine);
+  transform: scale(1.02);
+}
+
+.demo-confetti-burst {
+  position: absolute;
+  top: -14px;
+  left: -14px;
+  width: 50px;
+  height: 50px;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.burst-leaf {
+  position: absolute;
+  font-size: 13px;
+  animation: burstParticle 0.75s ease-out forwards;
+}
+
+.burst-leaf.l-1 {
+  --bx: -18px;
+  --by: -22px;
+  --rot: -35deg;
+}
+
+.burst-leaf.l-2 {
+  --bx: 20px;
+  --by: -20px;
+  --rot: 40deg;
+  animation-delay: 0.04s;
+}
+
+.burst-leaf.l-3 {
+  --bx: -15px;
+  --by: 16px;
+  --rot: -20deg;
+  animation-delay: 0.08s;
+}
+
+.burst-leaf.l-4 {
+  --bx: 22px;
+  --by: 14px;
+  --rot: 25deg;
+  animation-delay: 0.06s;
+}
+
+@keyframes burstParticle {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.4) rotate(0deg);
+  }
+  40% {
+    opacity: 1;
+    transform: translate(var(--bx), var(--by)) scale(1.2) rotate(var(--rot));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--bx) * 1.3), calc(var(--by) * 1.4 + 10px)) scale(0.8) rotate(calc(var(--rot) * 1.5));
+  }
+}
+
+.demo-task-text {
+  flex: 1;
+  text-align: left;
+}
+
+.demo-task-text strong {
+  display: block;
+  font-size: 14px;
+  color: var(--landing-ink);
+  line-height: 1.4;
+  transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
+.demo-task-text strong.task-done {
+  color: #8C9C8C;
+  text-decoration: line-through;
+}
+
+.demo-task-text small {
+  font-size: 11.5px;
+  color: var(--landing-muted);
+  display: block;
+  margin-top: 2px;
+}
+
+.demo-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #7B8D7B;
+  background: #EEF3EE;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+/* Interactive Focus Timer Box */
+.demo-timer-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  background: #FFFFFF;
+  border: 1px solid var(--landing-border);
+  border-radius: 14px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(31, 60, 44, 0.04);
+  flex-wrap: wrap;
+}
+
+.demo-timer-dial {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.timer-gauge-wrapper {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.timer-gauge-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.gauge-track {
+  fill: none;
+  stroke: #E6E2D4;
+  stroke-width: 3.2;
+}
+
+.gauge-indicator {
+  fill: none;
+  stroke: #2E523E;
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.6s var(--ease-smooth), stroke 0.3s ease;
+}
+
+.gauge-indicator.active {
+  stroke: #2E523E;
+  filter: drop-shadow(0 0 2px rgba(46, 82, 62, 0.4));
+}
+
+.timer-active-icon {
+  color: #2E523E;
+  animation: timerThrob 1.5s ease-in-out infinite;
+}
+
+@keyframes timerThrob {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+.timer-digits-col {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.demo-timer-digits {
+  font-family: 'Fraunces', serif;
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--landing-ink);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.25s ease;
+}
+
+.demo-timer-digits.digits-running {
+  color: #2E523E;
+}
+
+.timer-sub-status {
+  font-size: 11.5px;
+  color: var(--landing-muted);
+  margin-top: 4px;
+}
+
+.demo-timer-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.demo-control-btn {
+  padding: 8px 14px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: transform 0.18s var(--ease-spring), background-color 0.18s ease;
+}
+
+.demo-control-btn.play {
+  background: var(--landing-pine);
+  color: #FAF8EF;
+  border: none;
+}
+
+.demo-control-btn.play:hover {
+  background: var(--landing-pine-hover);
+  transform: translateY(-1px) scale(1.02);
+}
+
+.demo-control-btn.reset {
+  background: #EAE6D8;
+  color: var(--landing-ink);
+  border: 1px solid #DCD7C3;
+  padding: 8px;
+}
+
+.demo-control-btn.reset:hover {
+  background: #DFD9C8;
+  transform: translateY(-1px) rotate(-15deg);
+}
+
+/* Morning Shield Indicator inside Demo */
+.demo-shield-indicator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #F2EFE4;
+  border: 1px solid #DFD9C6;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.shield-icon-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #E2DDD0;
+  color: #8A6D3B;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.shield-copy strong {
+  display: block;
+  font-size: 12.5px;
+  color: var(--landing-ink);
+}
+
+.shield-copy span {
+  font-size: 11.5px;
+  color: var(--landing-muted);
+  display: block;
+  margin-top: 1px;
+}
+
+.demo-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 14px;
+  border-top: 1px dashed #DDD8C8;
+  font-size: 13px;
+}
+
+.demo-card-footer .hand {
+  font-family: 'Caveat', cursive;
+  font-size: 18px;
+  color: #6F806D;
+}
+
+.demo-dashboard-link {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.18s ease;
+}
+
+.demo-dashboard-link:hover {
+  background: #EAE5D4;
+  transform: translateX(2px);
 }
 
 
@@ -763,6 +1297,24 @@ html {
   transform: translateY(-2px);
 }
 
+.step-badge-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #E8F0EA;
+  color: var(--landing-pine);
+  display: grid;
+  place-items: center;
+  margin-bottom: 10px;
+  transition: transform 0.25s var(--ease-spring), background-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.loop-step:hover .step-badge-icon {
+  transform: scale(1.12) rotate(4deg);
+  background: #D8EADB;
+  box-shadow: 0 4px 10px rgba(46, 82, 62, 0.12);
+}
+
 .step-num {
   font-family: 'Fraunces', serif;
   font-size: 24px;
@@ -829,6 +1381,7 @@ html {
 }
 
 .card-stamp {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -841,6 +1394,34 @@ html {
   border-radius: 999px;
   margin-bottom: 20px;
   transition: transform 0.25s var(--ease-spring);
+}
+
+.stamp-halo {
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(46, 82, 62, 0.3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  transform: scale(0.95);
+}
+
+.philosophy-card:hover .stamp-halo {
+  opacity: 1;
+  transform: scale(1.08);
+  animation: haloBreathe 2s ease-in-out infinite alternate;
+}
+
+@keyframes haloBreathe {
+  0% {
+    opacity: 0.4;
+    border-color: rgba(46, 82, 62, 0.3);
+  }
+  100% {
+    opacity: 1;
+    border-color: rgba(46, 82, 62, 0.65);
+  }
 }
 
 .philosophy-card:hover .card-stamp {
@@ -988,6 +1569,55 @@ html {
   position: absolute;
   left: 0;
   top: -2px;
+}
+
+.panel-interactive-action {
+  margin-top: 24px;
+}
+
+.interactive-sim-btn {
+  padding: 10px 18px;
+  border-radius: 11px;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #FFFFFF;
+  border: 1.5px solid var(--landing-gold);
+  color: #2E523E;
+  cursor: pointer;
+  transition: all 0.2s var(--ease-spring);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.interactive-sim-btn:hover {
+  background: #F4F8F4;
+  border-color: #2E523E;
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px rgba(46, 82, 62, 0.12);
+}
+
+.interactive-sim-btn:active {
+  transform: scale(0.97);
+}
+
+.shield-shaking {
+  animation: shieldShake 0.65s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  border-color: #C2412D !important;
+  box-shadow: 0 0 20px rgba(194, 65, 45, 0.22) !important;
+}
+
+@keyframes shieldShake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  15%, 45%, 75% {
+    transform: translateX(-6px) rotate(-1.5deg);
+  }
+  30%, 60%, 90% {
+    transform: translateX(6px) rotate(1.5deg);
+  }
 }
 
 .mockup-card {
@@ -1173,6 +1803,21 @@ html {
   box-shadow: 0 4px 12px rgba(46, 82, 62, 0.1);
 }
 
+.sync-node.syncing-pulse {
+  animation: syncNodePulse 0.8s ease-in-out;
+  border-color: #2E523E !important;
+  box-shadow: 0 0 16px rgba(46, 82, 62, 0.25) !important;
+}
+
+@keyframes syncNodePulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
 .sync-status-pill {
   font-size: 11px;
   background: #E8F0EA;
@@ -1200,6 +1845,29 @@ html {
   background: #2E523E;
   box-shadow: 0 0 6px rgba(46, 82, 62, 0.4);
   animation: syncPulse 2.4s ease-in-out infinite;
+}
+
+.sync-connector .pulse-dot.burst-stream {
+  animation: burstStreamDot 0.65s ease-in-out infinite !important;
+  background: #1B5E20 !important;
+  width: 12px !important;
+  height: 12px !important;
+  box-shadow: 0 0 10px rgba(27, 94, 32, 0.6) !important;
+}
+
+@keyframes burstStreamDot {
+  0% {
+    transform: translateX(-40px);
+    opacity: 0.1;
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.4);
+  }
+  100% {
+    transform: translateX(40px);
+    opacity: 0.1;
+  }
 }
 
 @keyframes syncPulse {
@@ -1383,6 +2051,30 @@ html {
   margin: 0 auto;
   transition: transform 0.4s var(--ease-smooth), box-shadow 0.4s var(--ease-smooth);
   animation: phoneFloat 5s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+
+.phone-screen-sheen {
+  position: absolute;
+  top: -60%;
+  left: -80%;
+  width: 260%;
+  height: 220%;
+  background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.08) 47%, rgba(255, 255, 255, 0.18) 50%, transparent 54%);
+  pointer-events: none;
+  z-index: 20;
+  transform: rotate(15deg);
+  animation: screenSheenSweep 7s ease-in-out infinite;
+}
+
+@keyframes screenSheenSweep {
+  0%, 70%, 100% {
+    transform: translateX(-80%) rotate(15deg);
+  }
+  30% {
+    transform: translateX(80%) rotate(15deg);
+  }
 }
 
 .android-card:hover .phone-mockup-frame {
@@ -1404,15 +2096,84 @@ html {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 2;
+}
+
+.phone-dynamic-island {
+  width: 68px;
+  height: 14px;
+  background: #0D1812;
+  border-radius: 999px;
+  margin: -6px auto 14px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+  flex-shrink: 0;
 }
 
 .phone-header-bar {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 11px;
   color: #5C6C5B;
   font-weight: 600;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+}
+
+.phone-header-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+}
+
+.phone-awake-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #E8F0EA;
+  color: #2E523E;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.phone-battery-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #3E5445;
+}
+
+.battery-level {
+  display: inline-block;
+  width: 14px;
+  height: 8px;
+  border: 1.2px solid #3E5445;
+  border-radius: 2px;
+  position: relative;
+  padding: 1px;
+}
+
+.battery-level::after {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #2E523E;
+  border-radius: 1px;
+  animation: batteryPulse 3s ease-in-out infinite;
+}
+
+@keyframes batteryPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.65;
+  }
 }
 
 .phone-widget-preview {
@@ -1489,6 +2250,33 @@ html {
 
 .widget-btn:active {
   transform: scale(0.97);
+}
+
+.phone-quick-toast {
+  margin-top: 10px;
+  padding: 6px 10px;
+  background: #E8F0EA;
+  border: 1px solid #C8DACD;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #244234;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  animation: toastSlideIn 0.3s var(--ease-spring);
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ==========================================================================
@@ -2575,6 +3363,15 @@ html {
   .brand-tagline {
     display: none;
   }
+  .hero-floating-badge {
+    display: none !important;
+  }
+  .hero-demo-aura {
+    inset: -10px;
+  }
+  .hero-demo-card {
+    padding: 22px 18px;
+  }
   .philosophy-cards-grid {
     grid-template-columns: 1fr;
   }
@@ -2660,7 +3457,13 @@ html {
   .hero-description,
   .hero-cta-group,
   .hero-assurances,
-  .hero-demo-card {
+  .hero-demo-card,
+  .hero-demo-aura,
+  .hero-floating-badge,
+  .stamp-halo,
+  .shield-shaking,
+  .phone-screen-sheen,
+  .phone-quick-toast {
     opacity: 1 !important;
     transform: none !important;
     filter: none !important;
@@ -2681,7 +3484,10 @@ html {
   .live-pulse,
   .timer-active-icon,
   .hand-pulse-icon,
-  .sync-connector .pulse-dot {
+  .sync-connector .pulse-dot,
+  .sync-node.syncing-pulse,
+  .live-mini-dot,
+  .battery-level::after {
     animation: none !important;
     transform: none !important;
   }
