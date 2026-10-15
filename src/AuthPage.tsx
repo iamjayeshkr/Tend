@@ -2,20 +2,11 @@ import { useState } from 'react'
 import { SignIn, SignUp } from '@clerk/react'
 import {
   ArrowLeft,
-  ArrowRight,
-  Check,
-  Cloud,
-  Globe,
   Leaf,
-  Lock,
-  Mail,
   Shield,
-  Smartphone,
   Sparkles,
   Sprout,
-  X,
 } from 'lucide-react'
-import { useTendIdentity } from './auth/TendAuthProvider'
 
 export type AuthPageProps = {
   initialMode?: 'signin' | 'signup'
@@ -33,30 +24,6 @@ export function AuthPage({
   onContinueAsGuest,
 }: AuthPageProps) {
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode)
-  const identity = useTendIdentity()
-
-  // Mock / direct fallback form states if Clerk is not configured
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [mockLoading, setMockLoading] = useState(false)
-  const [authError, setAuthError] = useState<string | null>(null)
-
-  const handleMockSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setAuthError(null)
-    setMockLoading(true)
-    try {
-      // If clerk is present, Clerk components handle submission.
-      // Otherwise in guest/offline mode:
-      setTimeout(() => {
-        setMockLoading(false)
-        onContinueAsGuest()
-      }, 500)
-    } catch {
-      setAuthError('Authentication could not complete. Continuing as guest.')
-      setMockLoading(false)
-    }
-  }
 
   return (
     <div className="auth-page-container">
@@ -83,7 +50,7 @@ export function AuthPage({
             <Sparkles size={16} />
             <div>
               <strong>Local journal detected on this device</strong>
-              <p>Signing in will automatically and safely sync your existing tasks and reflections.</p>
+              <p>After signing in, Tend will show a migration preview before anything is added to your cloud account.</p>
             </div>
           </div>
         )}
@@ -124,6 +91,8 @@ export function AuthPage({
               {mode === 'signin' ? (
                 <SignIn
                   routing="hash"
+                  forceRedirectUrl="/#app"
+                  fallbackRedirectUrl="/#app"
                   appearance={{
                     elements: {
                       card: 'clerk-card-override',
@@ -134,6 +103,8 @@ export function AuthPage({
               ) : (
                 <SignUp
                   routing="hash"
+                  forceRedirectUrl="/#app"
+                  fallbackRedirectUrl="/#app"
                   appearance={{
                     elements: {
                       card: 'clerk-card-override',
@@ -144,43 +115,13 @@ export function AuthPage({
               )}
             </div>
           ) : (
-            /* Elegant Native Fallback Form (Offline / Self-contained) */
-            <form className="auth-native-form" onSubmit={handleMockSubmit}>
-              {authError && <div className="auth-error-alert">{authError}</div>}
-
-              <label className="field">
-                <span>Email address</span>
-                <div className="input-with-icon">
-                  <Mail size={16} />
-                  <input
-                    type="email"
-                    required
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-              </label>
-
-              <label className="field">
-                <span>Password</span>
-                <div className="input-with-icon">
-                  <Lock size={16} />
-                  <input
-                    type="password"
-                    required
-                    placeholder="••••••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-              </label>
-
-              <button className="primary auth-submit-btn" type="submit" disabled={mockLoading}>
-                <span>{mockLoading ? 'Authenticating…' : mode === 'signin' ? 'Sign In to Workspace' : 'Create Synced Account'}</span>
-                <ArrowRight size={17} />
-              </button>
-            </form>
+            <div className="auth-native-form auth-configuration-notice" role="status">
+              <Shield size={20} aria-hidden="true" />
+              <div>
+                <strong>Cloud sign-in is not configured</strong>
+                <p>Tend will not collect a password without its verified identity service. You can still use the private offline workspace.</p>
+              </div>
+            </div>
           )}
 
           {/* Distinct Offline Guest Mode Alternative */}

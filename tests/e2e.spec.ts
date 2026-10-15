@@ -82,6 +82,21 @@ test('landing page loads at root and opens app dashboard and docs', async ({ pag
   await expect(page.getByRole('button', { name: 'Make it mine', exact: true })).toBeVisible();
 });
 
+test('auth routes fail closed without cloud configuration and guest mode stays explicit', async ({ page }) => {
+  await page.goto('/#auth');
+  await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible();
+  await expect(page.getByText('Cloud sign-in is not configured', { exact: true })).toBeVisible();
+  await expect(page.locator('input[type="email"], input[type="password"]')).toHaveCount(0);
+
+  await page.getByRole('tab', { name: 'Create Account', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Begin with clarity.' })).toBeVisible();
+  await expect(page.locator('input[type="email"], input[type="password"]')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Continue as Guest', exact: true }).click();
+  await expect(page).toHaveURL(/#app$/);
+  await expect(page.getByRole('button', { name: 'Make it mine', exact: true })).toBeVisible();
+});
+
 test('guided first run leads to one task and a four-tab app', async ({ page }, testInfo) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));

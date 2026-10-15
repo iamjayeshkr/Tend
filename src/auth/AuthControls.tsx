@@ -45,9 +45,13 @@ export function AuthControls({ onSignOut, onOpenAuth }: { onSignOut?: () => Prom
           <h2>Sync when you want it</h2>
           <p>Sign in to keep a secure copy across your devices.</p>
         </div>
-        <SignInButton mode="modal">
-          <button className="outline" type="button">Sign in to sync</button>
-        </SignInButton>
+        {onOpenAuth ? (
+          <button className="outline" type="button" onClick={onOpenAuth}>Sign in to sync</button>
+        ) : (
+          <SignInButton mode="modal">
+            <button className="outline" type="button">Sign in to sync</button>
+          </SignInButton>
+        )}
       </section>
     )
   }

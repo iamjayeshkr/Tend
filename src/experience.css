@@ -49,9 +49,10 @@ html,body{background:var(--paper);color:var(--ink)}body{background-image:radial-
 .sidebar-section-title {
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--ink);
+  opacity: 0.72;
   padding: 16px 12px 6px;
   display: flex;
   align-items: center;
@@ -69,15 +70,19 @@ html,body{background:var(--paper);color:var(--ink)}body{background-image:radial-
   gap: 10px;
   width: 100%;
   padding: 9px 12px;
-  border-radius: 9px;
+  border-radius: 10px;
   font-size: 13px;
-  color: var(--muted);
-  transition: background 0.15s, color 0.15s;
+  font-weight: 500;
+  color: var(--ink);
+  opacity: 0.85;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .sidebar-list-item:hover, .sidebar-list-item.active {
   background: var(--sage);
   color: var(--ink);
-  font-weight: 500;
+  opacity: 1;
+  font-weight: 600;
+  transform: translateX(2px);
 }
 .sidebar-list-dot {
   width: 8px;
@@ -88,7 +93,179 @@ html,body{background:var(--paper);color:var(--ink)}body{background-image:radial-
 .sidebar-list-count {
   margin-left: auto;
   font-size: 11px;
-  color: var(--muted);
+  font-weight: 600;
+  color: var(--ink);
+  opacity: 0.75;
+}
+
+/* Sidebar Nav Items (Fixing faded appearance) */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  opacity: 0.88;
+  margin: 4px 0;
+  border: 1px solid transparent;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  opacity: 1;
+  transform: translateX(2px);
+}
+html[data-theme="light"] .nav-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+.nav-item.active {
+  background: var(--sage);
+  border-color: rgba(174, 195, 155, 0.35);
+  color: var(--ink);
+  font-weight: 600;
+  opacity: 1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.settings-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  width: 100%;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  opacity: 0.85;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  margin: 3px 0;
+}
+.settings-nav:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  opacity: 1;
+  transform: translateX(2px);
+}
+html[data-theme="light"] .settings-nav:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* Topbar Navigation (Fixing faded appearance) */
+.topbar-nav-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 7px 15px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  opacity: 0.95;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.topbar-nav-button:hover {
+  background: var(--soft);
+  border-color: var(--green);
+  color: var(--ink);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+}
+.topbar-nav-button:active {
+  transform: scale(0.97);
+}
+.date-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+  padding: 7px 14px;
+  background: var(--surface);
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.date-label svg {
+  color: var(--green);
+}
+.avatar {
+  background: var(--peach);
+  color: var(--ink);
+  width: 38px;
+  height: 38px;
+  font-weight: 600;
+  font-size: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s;
+}
+.avatar:hover {
+  transform: scale(1.08);
+  border-color: var(--green);
+}
+
+/* Shadcn-like Segmented Controls (Focus tabs, Rhythm tabs, Notebook tabs) */
+.focus-tabs,
+.segmented-control,
+.page-toolbar .segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  margin-bottom: 24px;
+}
+.focus-tabs > button,
+.segmented-control button,
+.page-toolbar .segmented button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  opacity: 0.78;
+  padding: 8px 18px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.focus-tabs > button:hover,
+.segmented-control button:hover,
+.page-toolbar .segmented button:hover {
+  opacity: 1;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.08);
+}
+html[data-theme="light"] .focus-tabs > button:hover,
+html[data-theme="light"] .segmented-control button:hover,
+html[data-theme="light"] .page-toolbar .segmented button:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+.focus-tabs > button[aria-selected="true"],
+.segmented-control button.selected,
+.page-toolbar .segmented button.selected {
+  background: var(--surface) !important;
+  color: var(--ink) !important;
+  font-weight: 600;
+  opacity: 1;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(174, 195, 155, 0.25);
 }
 
 /* Botanical Plant Artwork */
@@ -857,6 +1034,25 @@ html,body{background:var(--paper);color:var(--ink)}body{background-image:radial-
 }
 
 @media (max-width: 900px) {
+  .breadcrumb,
+  .date-label,
+  .search-button,
+  .topbar-nav-button {
+    display: none !important;
+  }
+  .topbar {
+    padding: 0 16px !important;
+  }
+  .top-actions {
+    gap: 10px !important;
+  }
+  .bottom-nav {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 999 !important;
+  }
   .today-hero-grid,
   .today-cards-grid,
   .focus-dashboard-layout {
@@ -920,3 +1116,522 @@ html,body{background:var(--paper);color:var(--ink)}body{background-image:radial-
   padding-bottom: 8px;
   border-bottom: 1px solid var(--line);
 }
+
+/* ==========================================================================
+   Frosted Botanical Modal System (Matching Reference Image 2)
+   ========================================================================== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(14, 24, 18, 0.72) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: modal-backdrop-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+html[data-theme="light"] .modal-backdrop {
+  background: rgba(26, 42, 32, 0.45) !important;
+}
+
+@keyframes modal-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal {
+  position: relative;
+  width: 100%;
+  max-width: 490px;
+  background: linear-gradient(165deg, rgba(32, 45, 36, 0.96) 0%, rgba(22, 32, 25, 0.98) 100%) !important;
+  border: 1px solid rgba(174, 195, 155, 0.25) !important;
+  border-radius: 24px !important;
+  padding: 32px 32px 28px !important;
+  box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(174, 195, 155, 0.15) !important;
+  color: var(--ink);
+  overflow: hidden;
+  max-height: 90dvh;
+  overflow-y: auto;
+  animation: modal-card-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+html[data-theme="light"] .modal {
+  background: linear-gradient(165deg, rgba(255, 253, 247, 0.98) 0%, rgba(246, 242, 232, 0.98) 100%) !important;
+  border: 1px solid rgba(174, 195, 155, 0.35) !important;
+  box-shadow: 0 24px 64px -12px rgba(32, 54, 40, 0.15), 0 0 0 1px rgba(174, 195, 155, 0.2) !important;
+}
+
+.modal.wide-modal {
+  max-width: 780px !important;
+}
+
+@keyframes modal-card-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-corner-art {
+  position: absolute;
+  top: -12px;
+  right: -15px;
+  width: 155px;
+  height: 155px;
+  object-fit: contain;
+  opacity: 0.18;
+  pointer-events: none;
+  transform: rotate(18deg);
+  filter: blur(0.4px);
+  z-index: 1;
+}
+
+html[data-theme="light"] .modal-corner-art {
+  opacity: 0.12;
+}
+
+.modal-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  z-index: 2;
+  margin-bottom: 4px;
+}
+
+.modal-heading .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.modal-eyebrow-icon {
+  color: var(--green);
+}
+
+.modal-close-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50% !important;
+  display: grid;
+  place-items: center;
+  background: rgba(120, 145, 125, 0.12) !important;
+  border: 1px solid var(--line) !important;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 0;
+  position: relative;
+  z-index: 3;
+}
+
+.modal-close-btn:hover {
+  background: rgba(120, 145, 125, 0.22) !important;
+  transform: scale(1.08);
+}
+
+.modal h2 {
+  font: 400 32px/1.2 Fraunces, serif !important;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  margin: 14px 0 6px !important;
+  position: relative;
+  z-index: 2;
+}
+
+.modal-intro {
+  font-size: 14px !important;
+  color: var(--muted) !important;
+  line-height: 1.55;
+  margin: 0 0 22px !important;
+  position: relative;
+  z-index: 2;
+}
+
+/* Modal Form Fields & Leading Icons */
+.modal .field {
+  margin: 18px 0;
+  position: relative;
+  z-index: 2;
+}
+
+.modal .field > span {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+
+.field-icon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.field-icon-wrap input,
+.field-icon-wrap select {
+  padding-left: 42px !important;
+}
+
+.field-leading-icon {
+  position: absolute;
+  left: 14px;
+  color: var(--muted);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.field-trailing-icon {
+  position: absolute;
+  right: 14px;
+  color: var(--muted);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.modal .field input,
+.modal .field select,
+.modal .field textarea {
+  background: var(--surface) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 14px !important;
+  padding: 13px 16px;
+  font-size: 14px !important;
+  width: 100%;
+  min-height: 48px;
+  transition: all 0.2s ease;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+html[data-theme="dark"] .modal .field input,
+html[data-theme="dark"] .modal .field select,
+html[data-theme="dark"] .modal .field textarea {
+  background: rgba(18, 27, 21, 0.8) !important;
+  border-color: rgba(174, 195, 155, 0.2) !important;
+}
+
+.modal .field input:focus,
+.modal .field select:focus,
+.modal .field textarea:focus {
+  outline: none;
+  border-color: var(--green) !important;
+  box-shadow: 0 0 0 3px rgba(174, 195, 155, 0.25) !important;
+}
+
+/* Modal Primary Button (Matching Reference Image 2) */
+.modal button.primary.full,
+.modal .primary {
+  width: 100%;
+  min-height: 50px;
+  border-radius: 14px !important;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+  background: var(--green) !important;
+  color: var(--on-green) !important;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 14px rgba(49, 86, 65, 0.25) !important;
+}
+
+.modal button.primary:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 6px 20px rgba(49, 86, 65, 0.32) !important;
+}
+
+.modal button.primary:active {
+  transform: scale(0.98);
+}
+
+/* ==========================================================================
+   Botanical Date Picker & Popover (Replacing OS native calendar)
+   ========================================================================== */
+.botanical-date-picker-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.botanical-date-picker-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.botanical-date-picker-trigger:hover,
+.botanical-date-picker-trigger.active {
+  border-color: var(--green);
+  background: var(--soft);
+}
+
+.botanical-date-picker-trigger .trigger-icon {
+  color: var(--green);
+  flex-shrink: 0;
+}
+
+.botanical-date-picker-trigger .trigger-chevron {
+  color: var(--muted);
+  transition: transform 0.2s ease;
+}
+
+.botanical-date-picker-trigger .trigger-chevron.open {
+  transform: rotate(180deg);
+}
+
+.botanical-date-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  width: 290px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(174, 195, 155, 0.15);
+  animation: popover-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.popover-header h4 {
+  font: 500 16px Fraunces, serif;
+  margin: 0;
+  color: var(--ink);
+}
+
+.popover-header h4 span {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+.popover-nav {
+  display: flex;
+  gap: 4px;
+}
+
+.popover-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.popover-weekday {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 4px 0;
+}
+
+.popover-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.popover-day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.popover-day:hover:not(:disabled):not(.blank) {
+  background: var(--soft);
+}
+
+.popover-day:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.popover-day.is-today {
+  font-weight: 700;
+  border: 1px solid var(--accent);
+}
+
+.popover-day.is-selected {
+  background: var(--green) !important;
+  color: var(--on-green) !important;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(49, 86, 65, 0.3);
+}
+
+.popover-day .today-dot {
+  position: absolute;
+  bottom: 2px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.popover-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+/* ==========================================================================
+   Daily Rhythm Page Grid Layouts
+   ========================================================================== */
+.rhythm-layout,
+.rhythm-history-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 24px;
+  align-items: start;
+  width: 100%;
+  margin-top: 20px;
+}
+
+.rhythm-timeline-panel {
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px;
+}
+
+.rhythm-day-summary-card {
+  border-radius: 20px;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.rhythm-metrics-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.rhythm-metrics-row strong {
+  display: block;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.rhythm-metrics-row span {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.rhythm-quick-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rhythm-quick-actions button {
+  flex: 1;
+  min-width: 120px;
+  font-size: 12px;
+  padding: 9px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 10px;
+}
+
+@media (max-width: 960px) {
+  .rhythm-layout,
+  .rhythm-history-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+/* ==========================================================================
+   Motion UI & Shadcn Micro-Interactions
+   ========================================================================== */
+.panel,
+.space-card,
+.focus-card,
+.focus-support-card,
+.next-step-card,
+.mini-calendar-card,
+.today-tasks-card,
+.focus-widget-card,
+.reminder-paper-card {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+button.primary,
+button.outline,
+.filter-pill,
+.category-options button,
+.duration-options button {
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+button:active {
+  transform: scale(0.98);
+}
+

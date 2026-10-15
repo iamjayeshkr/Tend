@@ -1,22 +1,26 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useReverification } from '@clerk/react'
 import {
-  Laptop,
-  Smartphone,
-  Globe,
-  Trash2,
-  Download,
   AlertTriangle,
   Check,
-  RefreshCw,
+  Download,
+  Globe,
+  Laptop,
   LogOut,
+  RefreshCw,
   Shield,
-  Clock,
-  ChevronRight,
   X,
 } from 'lucide-react'
-import { useTendIdentity } from './TendAuthProvider'
-import type { DeviceSummary } from './types'
+
 import { deviceIdFor } from '../sync/deviceIdentity'
+import {
+  AccountRequestError,
+  createAccountClient,
+  parseAccountExportBundle,
+  parseDeviceSummaries,
+} from './accountClient'
+import { useTendIdentity } from './TendAuthProvider'
+import type { DeviceSummary, TendIdentity } from './types'
 
 export type AccountPanelProps = {
   supabaseUrl?: string
@@ -24,96 +28,92 @@ export type AccountPanelProps = {
   onSignOut?: () => Promise<void>
 }
 
-export function AccountPanel({ supabaseUrl, onClose, onSignOut }: AccountPanelProps) {
-  const identity = useTendIdentity()
+type SignedInIdentity = Extract<TendIdentity, { status: 'signedIn' }>
+
+function isReverificationCancelled(error: unknown): boolean {
+  return Boolean(
+    error && typeof error === 'object' && 'code' in error &&
+    (error as { code?: unknown }).code === 'reverification_cancelled',
+  )
+}
+
+function errorCopy(error: unknown, fallback: string): string {
+  if (isReverificationCancelled(error)) return 'Verification was cancelled. No account changes were made.'
+  if (error instanceof AccountRequestError) return error.message
+  return fallback
+}
+
+function downloadExport(bundle: ReturnType<typeof parseAccountExportBundle>): void {
+  const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `tend-account-export-${new Date().toISOString().slice(0, 10)}.json`
+  link.rel = 'noopener'
+  link.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1_000)
+}
+
+function SignedInAccountPanel({
+  identity,
+  supabaseUrl,
+  onClose,
+  onSignOut,
+}: AccountPanelProps & { identity: SignedInIdentity; supabaseUrl: string }) {
   const [devices, setDevices] = useState<DeviceSummary[]>([])
   const [loadingDevices, setLoadingDevices] = useState(false)
   const [revokingId, setRevokingId] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
-  const [deletePending, setDeletePending] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const currentDeviceId = useMemo(() => deviceIdFor(), [])
+  const client = useMemo(() => createAccountClient({
+    baseUrl: new URL('/functions/v1/account', supabaseUrl).toString(),
+    deviceId: currentDeviceId,
+    getAccessToken: identity.getAccessToken,
+  }), [currentDeviceId, identity.getAccessToken, supabaseUrl])
 
-  const currentDeviceId = deviceIdFor()
+  const requestRevocation = useReverification((deviceId: string) => client.request('/devices/revoke', {
+    method: 'POST',
+    body: { deviceId },
+  }))
+  const requestExport = useReverification(() => client.request('/export'))
 
-  const fetchDevices = async () => {
-    if (identity.status !== 'signedIn' || !supabaseUrl) return
+  const fetchDevices = useCallback(async () => {
     setLoadingDevices(true)
     setErrorMessage(null)
     try {
-      const token = await identity.getAccessToken()
-      if (!token) return
-      const res = await fetch(`${supabaseUrl}/functions/v1/account/devices`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'x-device-id': currentDeviceId,
-        },
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setDevices(data)
-      } else {
-        // Fallback to local device info if backend not reachable
-        setDevices([
-          {
-            deviceId: currentDeviceId,
-            name: 'Current Browser Session',
-            platform: 'desktop',
-            appVersion: '1.1.14',
-            createdAt: new Date().toISOString(),
-            lastSeenAt: new Date().toISOString(),
-            isCurrentDevice: true,
-          },
-        ])
-      }
-    } catch {
-      setDevices([
-        {
-          deviceId: currentDeviceId,
-          name: 'Current Browser Session',
-          platform: 'desktop',
-          appVersion: '1.1.14',
-          createdAt: new Date().toISOString(),
-          lastSeenAt: new Date().toISOString(),
-          isCurrentDevice: true,
-        },
-      ])
+      const response = await client.request('/devices')
+      setDevices(parseDeviceSummaries(await response.json()))
+    } catch (error) {
+      setDevices([])
+      setErrorMessage(errorCopy(error, 'Could not load connected devices.'))
     } finally {
       setLoadingDevices(false)
     }
-  }
+  }, [client])
 
   useEffect(() => {
-    if (identity.status === 'signedIn') {
-      void fetchDevices()
-    }
-  }, [identity.status])
+    void fetchDevices()
+  }, [fetchDevices])
 
   const handleRevoke = async (deviceId: string) => {
-    if (identity.status !== 'signedIn' || !supabaseUrl) return
     setRevokingId(deviceId)
     setErrorMessage(null)
+    setStatusMessage(null)
     try {
-      const token = await identity.getAccessToken()
-      if (!token) return
-      const res = await fetch(`${supabaseUrl}/functions/v1/account/devices/revoke`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ deviceId }),
-      })
-      if (res.ok) {
-        setDevices((prev) => prev.filter((d) => d.deviceId !== deviceId))
-        setStatusMessage('Device access revoked.')
-        setTimeout(() => setStatusMessage(null), 3000)
-      } else {
-        setErrorMessage('Could not revoke device.')
+      const result = await requestRevocation(deviceId) as unknown
+      if (!result || typeof result !== 'object' || Array.isArray(result) ||
+          (result as Record<string, unknown>).success !== true ||
+          (result as Record<string, unknown>).revokedDeviceId !== deviceId ||
+          Object.keys(result).some((key) => !['success', 'revokedDeviceId'].includes(key))) {
+        throw new AccountRequestError(502, 'INVALID_RESPONSE', 'The account service returned an invalid response.')
       }
-    } catch {
-      setErrorMessage('Network error while revoking device.')
+      setDevices((previous) => previous.filter((device) => device.deviceId !== deviceId))
+      setStatusMessage('Device access revoked.')
+    } catch (error) {
+      setErrorMessage(errorCopy(error, 'Could not revoke this device.'))
     } finally {
       setRevokingId(null)
     }
@@ -122,79 +122,26 @@ export function AccountPanel({ supabaseUrl, onClose, onSignOut }: AccountPanelPr
   const handleExportData = async () => {
     setExporting(true)
     setErrorMessage(null)
+    setStatusMessage(null)
     try {
-      let exportData: unknown = null
-      if (identity.status === 'signedIn' && supabaseUrl) {
-        const token = await identity.getAccessToken()
-        if (token) {
-          const res = await fetch(`${supabaseUrl}/functions/v1/account/export`, {
-            headers: { Authorization: `Bearer ${token}` },
-          })
-          if (res.ok) {
-            exportData = await res.json()
-          }
-        }
-      }
-      if (!exportData) {
-        // Fallback to client localStorage/IndexedDB snapshot
-        const raw = localStorage.getItem('tend:app-state')
-        exportData = {
-          version: 1,
-          exportedAt: new Date().toISOString(),
-          source: 'local_storage',
-          state: raw ? JSON.parse(raw) : null,
-        }
-      }
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      const today = new Date().toISOString().slice(0, 10)
-      a.href = url
-      a.download = `tend-account-export-${today}.json`
-      a.click()
-      setTimeout(() => URL.revokeObjectURL(url), 1000)
-      setStatusMessage('Data export downloaded.')
-      setTimeout(() => setStatusMessage(null), 3000)
-    } catch {
-      setErrorMessage('Export failed. Please try again.')
+      const bundle = parseAccountExportBundle(await requestExport())
+      downloadExport(bundle)
+      setStatusMessage('Secure account export downloaded.')
+    } catch (error) {
+      setErrorMessage(errorCopy(error, 'Export failed. Please try again.'))
     } finally {
       setExporting(false)
     }
   }
 
-  const handleDeleteAccount = async () => {
-    setDeletePending(true)
+  const handleSignOut = async () => {
+    setSigningOut(true)
     setErrorMessage(null)
     try {
-      if (identity.status === 'signedIn' && supabaseUrl) {
-        const token = await identity.getAccessToken()
-        if (token) {
-          const res = await fetch(`${supabaseUrl}/functions/v1/account/delete`, {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
-              'x-device-id': currentDeviceId,
-            },
-            body: JSON.stringify({ confirmation: 'DELETE' }),
-          })
-          if (!res.ok) {
-            throw new Error('Server returned an error during deletion.')
-          }
-        }
-      }
-      if (onSignOut) {
-        await onSignOut()
-      } else if (identity.status === 'signedIn') {
-        await identity.signOut()
-      }
-      setStatusMessage('Account and synced data permanently deleted.')
-      if (onClose) onClose()
+      await (onSignOut ? onSignOut() : identity.signOut())
     } catch {
-      setErrorMessage('Could not process deletion request. Please try again.')
-    } finally {
-      setDeletePending(false)
-      setConfirmDelete(false)
+      setErrorMessage('Sign out could not be completed. Please try again.')
+      setSigningOut(false)
     }
   }
 
@@ -219,7 +166,6 @@ export function AccountPanel({ supabaseUrl, onClose, onSignOut }: AccountPanelPr
             <span>{statusMessage}</span>
           </div>
         )}
-
         {errorMessage && (
           <div className="account-alert error" role="alert">
             <AlertTriangle size={16} />
@@ -229,123 +175,98 @@ export function AccountPanel({ supabaseUrl, onClose, onSignOut }: AccountPanelPr
 
         <section className="account-section">
           <div className="account-user-card">
-            <div className="account-avatar">
-              <Shield size={24} />
-            </div>
+            <div className="account-avatar"><Shield size={24} /></div>
             <div className="account-user-details">
-              <strong>{identity.status === 'signedIn' ? `Signed in (${identity.userId.slice(0, 12)}…)` : 'Guest Mode (Offline)'}</strong>
-              <p>
-                {identity.status === 'signedIn'
-                  ? 'Your workspace automatically syncs across your verified devices.'
-                  : 'Your data is strictly stored in local browser storage on this device.'}
-              </p>
+              <strong>{`Signed in (${identity.userId.slice(0, 12)}…)`}</strong>
+              <p>Your encrypted session can sync this workspace across your verified devices.</p>
             </div>
-            {identity.status === 'signedIn' && (
-              <button
-                className="outline account-signout-btn"
-                onClick={onSignOut || identity.signOut}
-              >
-                <LogOut size={16} />
-                Sign out
-              </button>
-            )}
+            <button className="outline account-signout-btn" onClick={handleSignOut} disabled={signingOut}>
+              <LogOut size={16} />
+              {signingOut ? 'Signing out…' : 'Sign out'}
+            </button>
           </div>
         </section>
 
-        {identity.status === 'signedIn' && (
-          <section className="account-section">
-            <div className="account-section-heading">
-              <div>
-                <h3>Connected Devices</h3>
-                <p>Manage the laptops, tablets, and phones synced with your account.</p>
-              </div>
-              <button
-                className="icon-button"
-                onClick={fetchDevices}
-                disabled={loadingDevices}
-                aria-label="Refresh devices"
-              >
-                <RefreshCw size={16} className={loadingDevices ? 'spin' : ''} />
-              </button>
+        <section className="account-section">
+          <div className="account-section-heading">
+            <div>
+              <h3>Connected Devices</h3>
+              <p>Only active devices registered to this account are shown here.</p>
             </div>
+            <button className="icon-button" onClick={fetchDevices} disabled={loadingDevices} aria-label="Refresh devices">
+              <RefreshCw size={16} className={loadingDevices ? 'spin' : ''} />
+            </button>
+          </div>
 
-            <div className="device-list">
-              {devices.map((device) => (
-                <div key={device.deviceId} className={`device-row ${device.isCurrentDevice ? 'current' : ''}`}>
-                  <div className="device-icon">
-                    {device.platform === 'desktop' ? <Laptop size={20} /> : <Globe size={20} />}
-                  </div>
-                  <div className="device-info">
-                    <div className="device-title">
-                      <strong>{device.name}</strong>
-                      {device.isCurrentDevice && <span className="device-badge">This device</span>}
-                    </div>
-                    <small>
-                      App v{device.appVersion} · Last active{' '}
-                      {new Date(device.lastSeenAt).toLocaleDateString()}
-                    </small>
-                  </div>
-                  {!device.isCurrentDevice && (
-                    <button
-                      className="text-button revoke-btn"
-                      onClick={() => handleRevoke(device.deviceId)}
-                      disabled={revokingId === device.deviceId}
-                    >
-                      {revokingId === device.deviceId ? 'Revoking…' : 'Revoke'}
-                    </button>
-                  )}
+          <div className="device-list" aria-busy={loadingDevices}>
+            {!loadingDevices && devices.length === 0 && !errorMessage && (
+              <p className="muted">No active devices were returned.</p>
+            )}
+            {devices.map((device) => (
+              <div key={device.deviceId} className={`device-row ${device.isCurrentDevice ? 'current' : ''}`}>
+                <div className="device-icon">
+                  {device.platform === 'desktop' ? <Laptop size={20} /> : <Globe size={20} />}
                 </div>
-              ))}
-            </div>
-          </section>
-        )}
+                <div className="device-info">
+                  <div className="device-title">
+                    <strong>{device.name}</strong>
+                    {device.isCurrentDevice && <span className="device-badge">This device</span>}
+                  </div>
+                  <small>App v{device.appVersion} · Last active {new Date(device.lastSeenAt).toLocaleDateString()}</small>
+                </div>
+                {!device.isCurrentDevice && (
+                  <button
+                    className="text-button revoke-btn"
+                    onClick={() => handleRevoke(device.deviceId)}
+                    disabled={revokingId !== null}
+                  >
+                    {revokingId === device.deviceId ? 'Revoking…' : 'Revoke'}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
 
         <section className="account-section">
           <div className="account-section-heading">
             <div>
               <h3>Data Sovereignty & Export</h3>
-              <p>Export your entire task history, notebook thoughts, and reviews as an open JSON file.</p>
+              <p>Reverify your identity, then download the records stored in your cloud account.</p>
             </div>
           </div>
           <button className="outline export-button" onClick={handleExportData} disabled={exporting}>
             <Download size={17} />
-            {exporting ? 'Preparing export…' : 'Download Complete JSON Bundle'}
+            {exporting ? 'Preparing export…' : 'Download Secure JSON Bundle'}
           </button>
         </section>
+      </div>
+    </div>
+  )
+}
 
-        {identity.status === 'signedIn' && (
-          <section className="account-section danger-zone">
-            <div className="account-section-heading">
-              <div>
-                <h3 className="danger-text">Delete Account</h3>
-                <p>
-                  Permanently erase your cloud account and all synced server records. Your local journal remains intact on this device until manually cleared.
-                </p>
-              </div>
-            </div>
+export function AccountPanel(props: AccountPanelProps) {
+  const identity = useTendIdentity()
+  if (identity.status === 'signedIn' && props.supabaseUrl) {
+    return <SignedInAccountPanel {...props} identity={identity} supabaseUrl={props.supabaseUrl} />
+  }
 
-            {!confirmDelete ? (
-              <button className="outline danger-btn" onClick={() => setConfirmDelete(true)}>
-                <Trash2 size={16} />
-                Request Account Deletion
-              </button>
-            ) : (
-              <div className="delete-confirm-box">
-                <p>
-                  <strong>Are you sure?</strong> Cloud sync will be disconnected and all remote records will be permanently removed.
-                </p>
-                <div className="confirm-actions">
-                  <button className="text-button" onClick={() => setConfirmDelete(false)}>
-                    Cancel
-                  </button>
-                  <button className="danger-confirm-btn" onClick={handleDeleteAccount} disabled={deletePending}>
-                    {deletePending ? 'Deleting…' : 'Yes, Delete Cloud Account'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </section>
-        )}
+  return (
+    <div className="account-panel-container">
+      <div className="account-panel-card">
+        <header className="account-panel-header">
+          <div>
+            <span className="eyebrow">YOUR TEND ACCOUNT</span>
+            <h2>Cloud account unavailable</h2>
+          </div>
+          {props.onClose && (
+            <button className="icon-button" onClick={props.onClose} aria-label="Close panel"><X size={20} /></button>
+          )}
+        </header>
+        <div className="account-alert error" role="status">
+          <AlertTriangle size={16} />
+          <span>Sign in with configured cloud services to manage synced devices or export cloud data.</span>
+        </div>
       </div>
     </div>
   )

@@ -6,6 +6,10 @@ import type { TendIdentity } from './types'
 
 const TendIdentityContext = createContext<TendIdentity | null>(null)
 
+export function landingRedirectUrl(location: Pick<Location, 'origin' | 'pathname'>): string {
+  return `${location.origin}${location.pathname}#landing`
+}
+
 function ClerkIdentityBridge({ children }: { children: ReactNode }) {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth()
   const clerk = useClerk()
@@ -27,7 +31,8 @@ function ClerkIdentityBridge({ children }: { children: ReactNode }) {
       getAccessToken: ({ forceRefresh } = {}) => getToken(forceRefresh ? { skipCache: true } : undefined),
       signOut: async () => {
         verifiedUserId.current = null
-        await clerk.signOut()
+        const redirectUrl = typeof window === 'undefined' ? '/#landing' : landingRedirectUrl(window.location)
+        await clerk.signOut({ redirectUrl })
       },
     }
   }, [clerk, getToken, isLoaded, isSignedIn, userId])

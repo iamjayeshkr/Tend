@@ -6,6 +6,8 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  Sparkles,
   X,
   Sun,
   Moon,
@@ -88,6 +90,7 @@ import type { SyncEngine as SyncEngineType, SyncState } from "./sync/syncEngine"
 import { LandingPage } from "./LandingPage";
 import { DocsPage } from "./DocsPage";
 import { AuthPage } from "./AuthPage";
+import { BotanicalDatePicker } from "./components/BotanicalDatePicker";
 import { AccountPanel } from "./auth/AccountPanel";
 const native = () => (window as any).AndroidBridge;
 const categories: Category[] = [
@@ -290,6 +293,11 @@ export default function App({ environment }: { environment: PublicEnvironment })
       clearInterval(interval);
     };
   }, [identity.status]);
+  useEffect(() => {
+    if (identity.status !== "signedIn" || currentView !== "auth") return;
+    setCurrentView("app");
+    window.location.hash = "#app";
+  }, [currentView, identity.status]);
   const [workspaceLock, setWorkspaceLock] = useState<Extract<WorkspaceSelection, {kind:"locked"}> | null>(null);
   const accountRepository = useRef<LocalRepository | null>(null);
   const syncEngine = useRef<SyncEngineType | null>(null);
@@ -637,6 +645,7 @@ export default function App({ environment }: { environment: PublicEnvironment })
     if (identity.status !== "signedIn") return;
     syncEngine.current?.stop();
     await identity.signOut();
+    navigateToView("landing", "#landing");
   };
   const requestAccountSignOut = async () => {
     if (identity.status !== "signedIn") return;
@@ -698,7 +707,9 @@ export default function App({ environment }: { environment: PublicEnvironment })
         <Sprout />
         <h1>{workspaceLock.reason === "identity-loading" ? "Checking your account…" : "Your account is locked."}</h1>
         <p>{workspaceLock.reason === "identity-loading" ? "Your local data stays private while Tend verifies the session." : "Sign in again to unlock this account workspace. Guest data and other accounts remain separate."}</p>
-        {workspaceLock.reason === "session-expired" && <AuthControls />}
+        {workspaceLock.reason === "session-expired" && (
+          <AuthControls onOpenAuth={() => navigateToView("auth", "#auth")} />
+        )}
       </div>
     );
   if (loadError)
@@ -1384,50 +1395,83 @@ export default function App({ environment }: { environment: PublicEnvironment })
                   </div>
                 </div>
               ) : (
-                <section className="panel">
-                  <div className="section-heading">
-                    <div>
-                      <h2>A day, as it happened</h2>
-                      <p>Tap an entry to make a correction.</p>
+                <div className="rhythm-history-grid">
+                  <section className="panel rhythm-timeline-panel">
+                    <div className="section-heading">
+                      <div>
+                        <h2>A day, as it happened</h2>
+                        <p>Tap an entry to make a correction.</p>
+                      </div>
+                      <BotanicalDatePicker
+                        ariaLabel="Timeline date"
+                        max={today}
+                        value={historyDate}
+                        onChange={(val) => setHistoryDate(val)}
+                      />
                     </div>
-                    <input
-                      aria-label="Timeline date"
-                      type="date"
-                      max={today}
-                      value={historyDate}
-                      onChange={(e) => setHistoryDate(e.target.value)}
-                    />
+                    {timeline(
+                      s.activities
+                        .filter((a) => dateKey(a.start) === historyDate)
+                        .sort((a, b) => a.start - b.start),
+                    )}
+                    {!s.activities.some(
+                      (a) => dateKey(a.start) === historyDate,
+                    ) && (
+                      <Empty icon={Clock} title="No moments logged yet">
+                        Your sessions and check-ins will appear here.
+                      </Empty>
+                    )}
+                    <div className="unknown-note">
+                      <HelpCircle size={19} />
+                      <p>
+                        <strong>
+                          {formatMinutes(
+                            dayStats(s, historyDate, now).unknownMinutes,
+                          )}{" "}
+                          without a time log.
+                        </strong>{" "}
+                        This is unaccounted time, including gaps between your
+                        activities. Add a moment if you remember what happened.
+                      </p>
+                      <button onClick={() => openLog("custom")}>
+                        Fill a gap
+                        <Plus size={15} />
+                      </button>
+                    </div>
+                  </section>
+                  <div className="side-column rhythm-history-side">
+                    <section className="panel rhythm-day-summary-card">
+                      <span className="eyebrow"><Sparkles size={13} />DAY OVERVIEW</span>
+                      <h3>{historyDate === today ? "Today's attention" : `Day of ${historyDate}`}</h3>
+                      <div className="rhythm-metrics-row">
+                        <div>
+                          <strong>{formatMinutes(s.activities.filter(a => dateKey(a.start) === historyDate).reduce((acc, a) => acc + (a.end - a.start) / 60000, 0))}</strong>
+                          <span>total logged</span>
+                        </div>
+                        <div>
+                          <strong>{s.activities.filter(a => dateKey(a.start) === historyDate).length}</strong>
+                          <span>moments</span>
+                        </div>
+                      </div>
+                      <div className="rhythm-quick-actions">
+                        <button className="outline small" onClick={() => openLog("custom")}>
+                          <Plus size={14} /> Log activity
+                        </button>
+                        <button className="outline small" onClick={() => openLog("office")}>
+                          <Briefcase size={14} /> Clock in/out
+                        </button>
+                      </div>
+                    </section>
+                    <section className="note-card peach-note">
+                      <Pill>A GENTLE COMPASS</Pill>
+                      <h3>A direction. Not a deadline.</h3>
+                      <p>Progress looks different every day. Your logs are here to observe, not to judge.</p>
+                      <button className="text-button" onClick={() => go("reflect")}>
+                        Reflect on this day <ArrowRight size={14} />
+                      </button>
+                    </section>
                   </div>
-                  {timeline(
-                    s.activities
-                      .filter((a) => dateKey(a.start) === historyDate)
-                      .sort((a, b) => a.start - b.start),
-                  )}
-                  {!s.activities.some(
-                    (a) => dateKey(a.start) === historyDate,
-                  ) && (
-                    <Empty icon={Clock} title="No moments logged yet">
-                      Your sessions and check-ins will appear here.
-                    </Empty>
-                  )}
-                  <div className="unknown-note">
-                    <HelpCircle size={19} />
-                    <p>
-                      <strong>
-                        {formatMinutes(
-                          dayStats(s, historyDate, now).unknownMinutes,
-                        )}{" "}
-                        without a time log.
-                      </strong>{" "}
-                      This is unaccounted time, including gaps between your
-                      activities. Add a moment if you remember what happened.
-                    </p>
-                    <button onClick={() => openLog("custom")}>
-                      Fill a gap
-                      <Plus size={15} />
-                    </button>
-                  </div>
-                </section>
+                </div>
               )}
             </>
           )}
@@ -1995,14 +2039,24 @@ export default function App({ environment }: { environment: PublicEnvironment })
             aria-labelledby="modal-title"
             ref={dialogRef}
           >
+            {/* Corner Botanical Branch Art Watermark as shown in Image 2 */}
+            <img
+              src="/assets/plants/botanical-branch.png"
+              alt=""
+              className="modal-corner-art"
+              aria-hidden="true"
+            />
             <div className="modal-heading">
-              <span className="eyebrow">YOUR LITTLE SPACE</span>
+              <span className="eyebrow">
+                <Sprout className="modal-eyebrow-icon" />
+                YOUR LITTLE SPACE
+              </span>
               <button
-                className="icon-button"
+                className="icon-button modal-close-btn"
                 aria-label="Close dialog"
                 onClick={() => setModal(null)}
               >
-                <X size={21} />
+                <X size={18} />
               </button>
             </div>
             <h2 id="modal-title">{modalTitles[modal]}</h2>
@@ -2353,21 +2407,28 @@ export default function App({ environment }: { environment: PublicEnvironment })
                   What’s one thing you’d like to make happen today?
                 </p>
                 <Field label="My intention">
-                  <input
-                    name="title"
-                    placeholder="Read a chapter, finish that assignment…"
-                    required
-                    maxLength={180}
-                  />
+                  <div className="field-icon-wrap">
+                    <Pencil size={15} className="field-leading-icon" />
+                    <input
+                      name="title"
+                      placeholder="Read a chapter, finish that assignment…"
+                      required
+                      maxLength={180}
+                    />
+                  </div>
                 </Field>
                 <Field label="A little part of life">
-                  <select name="category" defaultValue="study">
-                    {categories.map((c) => (
-                      <option value={c} key={c}>
-                        {categoryLabels[c]}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="field-icon-wrap">
+                    <BookOpen size={15} className="field-leading-icon" />
+                    <select name="category" defaultValue="study">
+                      {categories.map((c) => (
+                        <option value={c} key={c}>
+                          {categoryLabels[c]}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={14} className="field-trailing-icon" />
+                  </div>
                 </Field>
                 <button className="primary full" disabled={busy}>
                   <Plus size={17} />
