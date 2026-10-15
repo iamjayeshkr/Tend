@@ -5,3 +5,6 @@
 .migration-backdrop{z-index:30}.guest-migration-modal{width:min(580px,100%)}.migration-symbol{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:#dce8c7;color:#365b45;margin-bottom:18px}.migration-counts{display:grid;grid-template-columns:1fr 1fr;gap:8px;list-style:none;padding:0;margin:20px 0}.migration-counts li{border:1px solid #e3e3d8;background:#f7f6ef;border-radius:10px;padding:10px 12px;font-size:13px}.migration-counts strong{font-size:17px;margin-right:4px}.migration-note{background:#eef0e8;border-radius:12px;padding:13px;color:#687466;font-size:12px}.spin{animation:sync-spin 1.2s linear infinite}
 @media(max-width:900px){.sync-status{padding:6px 8px}.sync-status span{max-width:125px;overflow:hidden;text-overflow:ellipsis}}
 @media(prefers-reduced-motion:reduce){.sync-status.is-working svg{animation:none}}
+.is-electron .topbar{-webkit-app-region:drag;user-select:none}
+.is-electron .topbar button,.is-electron .topbar a,.is-electron .topbar input,.is-electron .topbar-nav-button,.is-electron .sync-status{-webkit-app-region:no-drag;user-select:auto}
+.is-electron.is-mac .sidebar{padding-top:54px}

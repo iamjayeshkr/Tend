@@ -21,4 +21,5 @@ releases/
 *.keystore
 playwright-report/
 test-results/
+dist-electron/
 .DS_Store
