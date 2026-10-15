@@ -15,6 +15,7 @@ const DEVICE_2 = 'b0000000-0000-4000-8000-000000000002'
 
 function mockDb(overrides: Partial<AccountDatabase> = {}): AccountDatabase {
   return {
+    isDeviceActive: vi.fn(async () => true),
     listDevices: vi.fn(async () => [
       {
         id: DEVICE_1,
@@ -48,7 +49,13 @@ function mockDb(overrides: Partial<AccountDatabase> = {}): AccountDatabase {
         collection: 'ideas',
         record_id: 'idea-1',
         revision: 1,
-        data: { title: 'Calm morning thoughts', body: 'Paper aesthetic rules', date: '2026-10-15' },
+        data: {
+          title: 'Calm morning thoughts',
+          text: 'Paper aesthetic rules',
+          kind: 'idea',
+          status: 'unexplored',
+          createdAt: 1_760_500_000_000,
+        },
         modified_at: '2026-10-15T06:30:00Z',
       },
     ]),
@@ -56,9 +63,18 @@ function mockDb(overrides: Partial<AccountDatabase> = {}): AccountDatabase {
   }
 }
 
-function context(db = mockDb(), currentDeviceId?: string): AccountServiceContext {
+function context(
+  db = mockDb(),
+  currentDeviceId = DEVICE_1,
+  factorVerificationAge: readonly [number, number] | null = [0, -1],
+): AccountServiceContext {
   return {
-    principal: { ownerId: OWNER_ID, sessionId: 'sess_123', requestId: 'req_123' },
+    principal: {
+      ownerId: OWNER_ID,
+      sessionId: 'sess_123',
+      requestId: 'req_123',
+      factorVerificationAge,
+    },
     currentDeviceId,
     database: db,
   }
@@ -66,9 +82,12 @@ function context(db = mockDb(), currentDeviceId?: string): AccountServiceContext
 
 describe('accountService', () => {
   it('lists devices with current device indicator and safe fields only', async () => {
-    const ctx = context(mockDb(), DEVICE_1)
+    const db = mockDb()
+    const ctx = context(db, DEVICE_1)
     const devices = await listDevices(ctx)
 
+    expect(db.isDeviceActive).toHaveBeenCalledWith(OWNER_ID, DEVICE_1)
+    expect(db.listDevices).toHaveBeenCalledWith(OWNER_ID)
     expect(devices).toHaveLength(2)
     expect(devices[0].deviceId).toBe(DEVICE_1)
     expect(devices[0].isCurrentDevice).toBe(true)
@@ -83,7 +102,28 @@ describe('accountService', () => {
 
     expect(result.success).toBe(true)
     expect(result.revokedDeviceId).toBe(DEVICE_2)
+    expect(db.isDeviceActive).toHaveBeenCalledWith(OWNER_ID, DEVICE_1)
     expect(db.revokeDevice).toHaveBeenCalledWith(OWNER_ID, DEVICE_2)
+  })
+
+  it('denies account controls immediately when the calling device is revoked', async () => {
+    const db = mockDb({ isDeviceActive: vi.fn(async () => false) })
+
+    await expect(listDevices(context(db))).rejects.toMatchObject({
+      status: 403,
+      code: 'DEVICE_REVOKED',
+    })
+    expect(db.listDevices).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['device revocation', (ctx: AccountServiceContext) => revokeDevice(ctx, DEVICE_2)],
+    ['account export', (ctx: AccountServiceContext) => exportAccountData(ctx)],
+  ])('requires recent Clerk reverification for %s', async (_name, action) => {
+    await expect(action(context(mockDb(), DEVICE_1, [10, -1]))).rejects.toMatchObject({
+      status: 403,
+      code: 'REVERIFICATION_REQUIRED',
+    })
   })
 
   it('rejects invalid or non-existent device revocation', async () => {
@@ -101,5 +141,47 @@ describe('accountService', () => {
     expect(exportBundle.collections.tasks).toHaveLength(1)
     expect(exportBundle.collections.tasks[0].recordId).toBe('task-1')
     expect(exportBundle.collections.ideas).toHaveLength(1)
+    expect(JSON.stringify(exportBundle)).not.toMatch(/password|authorization|access[_-]?token|refresh[_-]?token|raw[_-]?ip/i)
+  })
+
+  it('fails closed when stored records contain fields outside the sync allowlist', async () => {
+    const db = mockDb({
+      exportRecords: vi.fn(async () => [{
+        collection: 'tasks',
+        record_id: 'task-unsafe',
+        revision: 1,
+        data: {
+          title: 'Unsafe record',
+          done: false,
+          date: '2026-10-15',
+          category: 'work',
+          password: 'must-never-export',
+        },
+        modified_at: '2026-10-15T06:00:00Z',
+      }]),
+    })
+
+    await expect(exportAccountData(context(db))).rejects.toMatchObject({
+      status: 500,
+      code: 'EXPORT_RECORD_INVALID',
+    })
+  })
+
+  it('rejects exports that exceed the bounded JSON response size', async () => {
+    const largeTitle = 'x'.repeat(1_000)
+    const db = mockDb({
+      exportRecords: vi.fn(async () => Array.from({ length: 9_000 }, (_, index) => ({
+        collection: 'tasks',
+        record_id: `task-${index}`,
+        revision: 1,
+        data: { title: largeTitle, done: false, date: '2026-10-15', category: 'work' },
+        modified_at: '2026-10-15T06:00:00Z',
+      }))),
+    })
+
+    await expect(exportAccountData(context(db))).rejects.toMatchObject({
+      status: 413,
+      code: 'EXPORT_TOO_LARGE',
+    })
   })
 })

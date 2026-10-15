@@ -63,7 +63,7 @@ describe('authenticateRequest', () => {
   it('returns a verified principal and passes all networkless Clerk constraints', async () => {
     const config = authConfig()
     await expect(authenticateRequest(request(), config)).resolves.toEqual({
-      ownerId: 'user_a', sessionId: 'session_a', requestId: 'request-123',
+      ownerId: 'user_a', sessionId: 'session_a', requestId: 'request-123', factorVerificationAge: null,
     })
     expect(config.authenticate).toHaveBeenCalledWith(expect.any(Request), expect.objectContaining({
       acceptsToken: 'session_token',
@@ -71,6 +71,19 @@ describe('authenticateRequest', () => {
       authorizedParties: allowedOrigins,
       jwtKey: config.jwtKey,
     }))
+  })
+
+  it('carries a validated Clerk factor-verification age and rejects pending sessions', async () => {
+    const verified = await authenticateRequest(request(), authConfig({
+      sub: 'user_a', sid: 'session_a', iss: 'https://clerk.tend.example', aud: 'tend-sync',
+      azp: 'https://app.tend.example', exp: nowSeconds + 60, fva: [0, -1],
+    }))
+    expect(verified.factorVerificationAge).toEqual([0, -1])
+
+    await expect(authenticateRequest(request(), authConfig({
+      sub: 'user_a', sid: 'session_a', iss: 'https://clerk.tend.example', aud: 'tend-sync',
+      azp: 'https://app.tend.example', exp: nowSeconds + 60, sts: 'pending',
+    }))).rejects.toMatchObject({ status: 403, code: 'SESSION_PENDING' })
   })
 })
 

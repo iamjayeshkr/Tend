@@ -33,7 +33,12 @@ function database(overrides: Partial<PullDatabase> = {}): PullDatabase {
 
 function context(db = database()): PullServiceContext {
   return {
-    principal: { ownerId: 'user_verified', sessionId: 'session_verified', requestId: 'request-123' },
+    principal: {
+      ownerId: 'user_verified',
+      sessionId: 'session_verified',
+      requestId: 'request-123',
+      factorVerificationAge: null,
+    },
     database: db,
     cursorSecret: CURSOR_SECRET,
   }

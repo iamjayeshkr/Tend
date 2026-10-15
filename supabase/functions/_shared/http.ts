@@ -1,6 +1,6 @@
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/
 const ALLOWED_METHODS = new Set(['GET', 'POST', 'DELETE'])
-const ALLOWED_REQUEST_HEADERS = new Set(['authorization', 'content-type', 'x-request-id'])
+const ALLOWED_REQUEST_HEADERS = new Set(['authorization', 'content-type', 'x-device-id', 'x-request-id'])
 
 export class ApiFailure extends Error {
   readonly status: number

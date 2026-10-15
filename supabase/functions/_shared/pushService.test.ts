@@ -43,7 +43,12 @@ function database(overrides: Partial<SyncDatabase> = {}): SyncDatabase {
 
 function context(db = database()): PushServiceContext {
   return {
-    principal: { ownerId: OWNER_ID, sessionId: 'session_verified', requestId: 'request-123' },
+    principal: {
+      ownerId: OWNER_ID,
+      sessionId: 'session_verified',
+      requestId: 'request-123',
+      factorVerificationAge: null,
+    },
     database: db,
   }
 }

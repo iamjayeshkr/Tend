@@ -37,6 +37,7 @@ export type VerifiedPrincipal = {
   ownerId: string
   sessionId: string
   requestId: string
+  factorVerificationAge: readonly [number, number] | null
 }
 
 function hasBearerToken(request: Request): boolean {
@@ -53,6 +54,18 @@ function claimsRecord(value: unknown): Record<string, unknown> {
     throw new ApiFailure(401, 'AUTH_INVALID', 'Authentication token is invalid.')
   }
   return value as Record<string, unknown>
+}
+
+function factorVerificationAge(value: unknown): readonly [number, number] | null {
+  if (value === undefined) return null
+  if (
+    !Array.isArray(value)
+    || value.length !== 2
+    || value.some((age) => typeof age !== 'number' || !Number.isFinite(age) || (age !== -1 && age < 0))
+  ) {
+    throw new ApiFailure(401, 'AUTH_INVALID', 'Authentication token is invalid.')
+  }
+  return [value[0] as number, value[1] as number]
 }
 
 export async function authenticateRequest(
@@ -108,6 +121,9 @@ export async function authenticateRequest(
   if (typeof claims.azp !== 'string' || !config.authorizedParties.includes(claims.azp)) {
     throw new ApiFailure(403, 'TOKEN_PARTY', 'Authentication token party is not allowed.')
   }
+  if (claims.sts === 'pending') {
+    throw new ApiFailure(403, 'SESSION_PENDING', 'Authentication setup is incomplete.')
+  }
   if (
     typeof auth.userId !== 'string'
     || auth.userId.length === 0
@@ -123,5 +139,6 @@ export async function authenticateRequest(
     ownerId: auth.userId,
     sessionId: auth.sessionId,
     requestId: requestIdFor(request),
+    factorVerificationAge: factorVerificationAge(claims.fva),
   }
 }

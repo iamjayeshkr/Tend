@@ -9,7 +9,9 @@ const deviceId = '8db46216-8f06-4d87-a240-15f153c783b4'
 function dependencies(overrides: Partial<SyncHandlerDependencies> = {}): SyncHandlerDependencies {
   return {
     allowedOrigins: [origin],
-    authenticate: vi.fn(async () => ({ ownerId: 'user_a', sessionId: 'session_a', requestId: 'request-123' })),
+    authenticate: vi.fn(async () => ({
+      ownerId: 'user_a', sessionId: 'session_a', requestId: 'request-123', factorVerificationAge: null,
+    })),
     clientIp: vi.fn(() => '203.0.113.42'),
     limit: vi.fn(async () => ({ allowed: true, degraded: false, limit: 30, remaining: 29, headers: {} })),
     register: vi.fn(async () => ({ status: 'registered' as const })),
