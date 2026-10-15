@@ -1,6 +1,6 @@
 import type { AppState } from '../core'
 import type { PreservedConflict } from '../sync/conflicts'
-import type { RemoteRecord, SyncOperation } from '../sync/types'
+import type { RemoteRecord, SyncOperation, TendCollection } from '../sync/types'
 import {
   LEGACY_SNAPSHOT_KEY,
   STORES,
@@ -21,6 +21,25 @@ export type WorkspaceMetadata = {
   revisions: Record<string, number>
   bases?: Record<string, RemoteRecord>
   conflicts?: PreservedConflict[]
+  migration?: GuestMigrationCheckpoint
+}
+
+export type MigrationExpectation = {
+  collection: TendCollection
+  recordId: string
+  fieldHashes: Record<string, string>
+}
+
+export type GuestMigrationCheckpoint = {
+  migrationId: string
+  sourceHash: string
+  status: 'validating' | 'prepared' | 'complete'
+  expectations: MigrationExpectation[]
+  operationIds: string[]
+  counts: Record<TendCollection, number>
+  startedAt: number
+  recoveryExpiresAt: number
+  completedAt?: number
 }
 
 export type AcknowledgeResult = {
@@ -45,6 +64,7 @@ type QueuedOperation = {
 const storageKey = (workspaceId: string) => `workspace:${workspaceId}`
 const queueKey = (workspaceId: string, operationId: string) => `${workspaceId}:${operationId}`
 const metadataRecordKey = (record: Pick<RemoteRecord, 'collection' | 'recordId'>) => `${record.collection}:${record.recordId}`
+export const LOCAL_RECOVERY_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
@@ -224,6 +244,7 @@ export class LocalRepository {
         revisions: { ...(existing?.revisions ?? {}), ...revisions },
         ...(Object.keys(bases).length === 0 ? {} : { bases }),
         ...(conflictsById.size === 0 ? {} : { conflicts: [...conflictsById.values()] }),
+        ...(existing?.migration ? { migration: existing.migration } : {}),
       } satisfies WorkspaceMetadata)
       await transactionComplete(transaction)
     })
@@ -245,19 +266,139 @@ export class LocalRepository {
     const snapshot = clone(state)
     return this.enqueue(async () => {
       const transaction = this.database!.transaction(STORES.recovery, 'readwrite')
-      transaction.objectStore(STORES.recovery).put({ workspaceId, state: snapshot, savedAt: Date.now() })
+      const savedAt = Date.now()
+      transaction.objectStore(STORES.recovery).put({
+        workspaceId, state: snapshot, savedAt, expiresAt: savedAt + LOCAL_RECOVERY_RETENTION_MS,
+      })
       await transactionComplete(transaction)
     })
   }
 
-  async loadRecoverySnapshot(workspaceId: string): Promise<AppState | null> {
+  async loadRecoverySnapshot(workspaceId: string, now = Date.now()): Promise<AppState | null> {
     this.requireWorkspace(workspaceId)
     await this.writes.catch(() => undefined)
     if (!this.database) return null
-    const transaction = this.database.transaction(STORES.recovery, 'readonly')
-    const row = await requestResult(transaction.objectStore(STORES.recovery).get(workspaceId)) as { state: AppState } | undefined
+    const transaction = this.database.transaction(STORES.recovery, 'readwrite')
+    const store = transaction.objectStore(STORES.recovery)
+    const row = await requestResult(store.get(workspaceId)) as {
+      state: AppState; savedAt: number; expiresAt?: number
+    } | undefined
+    const expiresAt = row && (row.expiresAt ?? row.savedAt + LOCAL_RECOVERY_RETENTION_MS)
+    if (row && expiresAt !== undefined && now >= expiresAt) store.delete(workspaceId)
     await transactionComplete(transaction)
-    return row ? clone(row.state) : null
+    return row && expiresAt !== undefined && now < expiresAt ? clone(row.state) : null
+  }
+
+  saveMigrationCheckpoint(workspaceId: string, checkpoint: GuestMigrationCheckpoint): Promise<void> {
+    this.requireWorkspace(workspaceId)
+    if (!this.database) return Promise.reject(new Error('The localStorage fallback has no migration checkpoints.'))
+    const snapshot = clone(checkpoint)
+    return this.enqueue(async () => {
+      const transaction = this.database!.transaction(STORES.metadata, 'readwrite')
+      const store = transaction.objectStore(STORES.metadata)
+      const existing = await requestResult(store.get(workspaceId)) as WorkspaceMetadata | undefined
+      store.put({
+        workspaceId,
+        pullCursor: existing?.pullCursor,
+        revisions: { ...(existing?.revisions ?? {}) },
+        ...(existing?.bases ? { bases: existing.bases } : {}),
+        ...(existing?.conflicts ? { conflicts: existing.conflicts } : {}),
+        migration: snapshot,
+      } satisfies WorkspaceMetadata)
+      await transactionComplete(transaction)
+    })
+  }
+
+  beginGuestMigration(
+    workspaceId: string,
+    previous: AppState,
+    next: AppState,
+    operations: SyncOperation[],
+    checkpoint: GuestMigrationCheckpoint,
+    recoveryState: AppState,
+  ): Promise<void> {
+    this.requireWorkspace(workspaceId)
+    if (!this.database) return Promise.reject(new Error('The localStorage fallback cannot migrate an account.'))
+    const previousSnapshot = clone(previous)
+    const nextSnapshot = clone(next)
+    const operationSnapshots = clone(operations)
+    const checkpointSnapshot = clone(checkpoint)
+    const recoverySnapshot = clone(recoveryState)
+    return this.enqueue(async () => {
+      await new Promise<void>((resolve, reject) => {
+        const transaction = this.database!.transaction(
+          [STORES.snapshots, STORES.operations, STORES.metadata, STORES.recovery],
+          'readwrite',
+        )
+        const snapshots = transaction.objectStore(STORES.snapshots)
+        const queued = transaction.objectStore(STORES.operations)
+        const metadataStore = transaction.objectStore(STORES.metadata)
+        const recovery = transaction.objectStore(STORES.recovery)
+        let failure: Error | null = null
+        const currentRequest = snapshots.get(storageKey(workspaceId))
+        currentRequest.onsuccess = () => {
+          const current = currentRequest.result === undefined || currentRequest.result === null
+            ? null
+            : JSON.parse(String(currentRequest.result)) as AppState
+          if (!sameState(current, previousSnapshot)) {
+            failure = new Error('Workspace changed in another writer.')
+            transaction.abort()
+            return
+          }
+          snapshots.put(JSON.stringify(nextSnapshot), storageKey(workspaceId))
+          for (const operation of operationSnapshots) {
+            queued.put({
+              queueKey: queueKey(workspaceId, operation.operationId), workspaceId, operation,
+            } satisfies QueuedOperation)
+          }
+          const metadataRequest = metadataStore.get(workspaceId)
+          metadataRequest.onsuccess = () => {
+            const existing = metadataRequest.result as WorkspaceMetadata | undefined
+            metadataStore.put({
+              workspaceId,
+              pullCursor: existing?.pullCursor,
+              revisions: { ...(existing?.revisions ?? {}) },
+              ...(existing?.bases ? { bases: existing.bases } : {}),
+              ...(existing?.conflicts ? { conflicts: existing.conflicts } : {}),
+              migration: checkpointSnapshot,
+            } satisfies WorkspaceMetadata)
+            recovery.put({
+              workspaceId,
+              state: recoverySnapshot,
+              savedAt: checkpointSnapshot.startedAt,
+              expiresAt: checkpointSnapshot.recoveryExpiresAt,
+            })
+          }
+          metadataRequest.onerror = () => {
+            failure = metadataRequest.error ?? new Error('Could not read migration metadata.')
+            transaction.abort()
+          }
+        }
+        currentRequest.onerror = () => {
+          failure = currentRequest.error ?? new Error('Could not read the current workspace.')
+          transaction.abort()
+        }
+        transaction.oncomplete = () => resolve()
+        transaction.onabort = () => reject(failure ?? transaction.error ?? new Error('Guest migration was aborted.'))
+        transaction.onerror = () => reject(failure ?? transaction.error ?? new Error('Guest migration failed.'))
+      })
+    })
+  }
+
+  completeGuestMigration(workspaceId: string, completedAt: number): Promise<void> {
+    this.requireWorkspace(workspaceId)
+    if (!this.database) return Promise.reject(new Error('The localStorage fallback has no migration checkpoints.'))
+    return this.enqueue(async () => {
+      const transaction = this.database!.transaction(STORES.metadata, 'readwrite')
+      const store = transaction.objectStore(STORES.metadata)
+      const existing = await requestResult(store.get(workspaceId)) as WorkspaceMetadata | undefined
+      if (!existing?.migration) throw new Error('No guest migration is ready to complete.')
+      store.put({
+        ...existing,
+        migration: { ...existing.migration, status: 'complete', completedAt },
+      } satisfies WorkspaceMetadata)
+      await transactionComplete(transaction)
+    })
   }
 
   deleteWorkspace(workspaceId: string): Promise<void> {

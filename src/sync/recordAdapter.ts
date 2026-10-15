@@ -24,7 +24,7 @@ export type DiffMetadata = {
   baseRevisions?: ReadonlyMap<string, number>
 }
 
-const shareableSettings = [
+export const SHAREABLE_SETTING_KEYS = [
   'name',
   'wake',
   'sleep',
@@ -65,7 +65,7 @@ export function stateToRecords(input: AppState): Map<string, LocalRecord> {
   for (const item of state.sets) add('sets', item.id, payloadWithout(item as unknown as Record<string, unknown>, ['id']))
   for (const [date, timestamp] of Object.entries(state.wakeLogs)) add('wakeLogs', date, { timestamp })
   for (const [date, timestamp] of Object.entries(state.sleepLogs)) add('sleepLogs', date, { timestamp })
-  for (const key of shareableSettings) add('settings', key, { value: state.settings[key] as JsonValue })
+  for (const key of SHAREABLE_SETTING_KEYS) add('settings', key, { value: state.settings[key] as JsonValue })
 
   return new Map(
     records
@@ -124,7 +124,7 @@ export function recordsToState(base: AppState, records: Iterable<RemoteRecord>):
       if (deleted) delete target[record.recordId]
       else target[record.recordId] = record.data!.timestamp as number
     } else if (record.collection === 'settings' && !deleted) {
-      const key = record.recordId as (typeof shareableSettings)[number]
+      const key = record.recordId as (typeof SHAREABLE_SETTING_KEYS)[number]
       ;(next.settings as unknown as Record<string, JsonValue>)[key] = record.data!.value
     }
   }

@@ -73,12 +73,15 @@ import { Welcome, TodayPage, YourSpace } from "./Experience";
 import Notebook from "./Notebook";
 import { ProtectionPanel } from "./ProtectionPanel";
 import { AuthControls } from "./auth/AuthControls";
+import { GuestMigrationDialog, type GuestMigrationPhase } from "./auth/GuestMigrationDialog";
+import type { GuestMigrationPreview } from "./auth/guestMigration";
 import { useTendIdentity } from "./auth/TendAuthProvider";
 import { LocalRepository } from "./data/localRepository";
 import { WorkspaceManager, type WorkspaceSelection } from "./data/workspaceManager";
 import type { PublicEnvironment } from "./security/env";
 import { SyncStatus } from "./sync/SyncStatus";
 import { deviceIdFor } from "./sync/deviceIdentity";
+import type { SyncGateway } from "./sync/gatewayClient";
 import type { SyncEngine as SyncEngineType, SyncState } from "./sync/syncEngine";
 const native = () => (window as any).AndroidBridge;
 const categories: Category[] = [
@@ -217,8 +220,14 @@ export default function App({ environment }: { environment: PublicEnvironment })
   const syncEngine = useRef<SyncEngineType | null>(null);
   const syncSubscription = useRef<(() => void) | null>(null);
   const [syncState, setSyncState] = useState<SyncState>({status:"stopped",pendingCount:0,attempt:0});
+  const [guestMigration, setGuestMigration] = useState<{
+    phase: GuestMigrationPhase; preview: GuestMigrationPreview; error?: string;
+  } | null>(null);
   const workspaceId = useRef("guest");
   const workspacePersisted = useRef(true);
+  const migrationGuest = useRef<AppState | null>(null);
+  const migrationGateway = useRef<SyncGateway | null>(null);
+  const migrationAccountWorkspace = useRef<string | null>(null);
   const [focusTab,setFocusTab] = useState<"timer"|"shield">("timer");
   const [formError,setFormError] = useState("");
   const [focusTaskId,setFocusTaskId] = useState<string|null>(null);
@@ -252,6 +261,10 @@ export default function App({ environment }: { environment: PublicEnvironment })
     setS(null);
     setLoadError("");
     setWorkspaceLock(null);
+    setGuestMigration(null);
+    migrationGuest.current = null;
+    migrationGateway.current = null;
+    migrationAccountWorkspace.current = null;
     const openWorkspace = async () => {
       await queue.current.catch(() => undefined);
       syncEngine.current?.stop();
@@ -284,15 +297,12 @@ export default function App({ environment }: { environment: PublicEnvironment })
         return;
       }
       accountRepository.current = repository;
-      workspaceId.current = selection.workspaceId;
-      workspacePersisted.current = selection.persisted;
-      stateRef.current = selection.state;
-      setS(selection.state);
-      setFocusMins(selection.state.settings.focusMinutes);
+      let accountState = selection.state;
       if (identity.status === "signedIn" && environment.cloud && repository.capabilities.durableQueue) {
-        const [{ createSyncGateway }, { SyncEngine }] = await Promise.all([
+        const [{ createSyncGateway }, { SyncEngine }, { guestMigrationSourceHash, previewGuestMigration }] = await Promise.all([
           import("./sync/gatewayClient"),
           import("./sync/syncEngine"),
+          import("./auth/guestMigration"),
         ]);
         if (cancelled || accountRepository.current !== repository) return;
         const deviceId = deviceIdFor();
@@ -321,8 +331,45 @@ export default function App({ environment }: { environment: PublicEnvironment })
         });
         syncEngine.current = engine;
         syncSubscription.current = engine.subscribe(setSyncState);
+        await engine.syncNow();
+        if (cancelled || accountRepository.current !== repository) return;
+        accountState = await repository.loadWorkspace(selection.workspaceId) ?? accountState;
+        const guest = await repository.loadWorkspace("guest");
+        const metadata = await repository.loadMetadata(selection.workspaceId);
+        const guestNeedsMigration = guest && (
+          metadata.migration?.status !== "complete"
+          || metadata.migration.sourceHash !== await guestMigrationSourceHash(guest)
+        );
+        if (guest && guestNeedsMigration) {
+          engine.stop();
+          migrationGuest.current = guest;
+          migrationGateway.current = gateway;
+          migrationAccountWorkspace.current = selection.workspaceId;
+          workspaceId.current = "guest";
+          workspacePersisted.current = true;
+          stateRef.current = guest;
+          setS(guest);
+          setFocusMins(guest.settings.focusMinutes);
+          setGuestMigration({
+            phase: metadata.migration?.status === "prepared" || engine.getState().lastSyncedAt === undefined
+              ? "error"
+              : "preview",
+            preview: previewGuestMigration(guest),
+            ...(metadata.migration?.status === "prepared"
+              ? { error: "The earlier migration paused before its verification finished." }
+              : engine.getState().lastSyncedAt === undefined
+                ? { error: "Tend could not verify the account yet. Reconnect and retry safely." }
+                : {}),
+          });
+          return;
+        }
         engine.start();
       }
+      workspaceId.current = selection.workspaceId;
+      workspacePersisted.current = true;
+      stateRef.current = accountState;
+      setS(accountState);
+      setFocusMins(accountState.settings.focusMinutes);
     };
     openWorkspace().catch((e) => { if (!cancelled) setLoadError(String(e.message || e)); });
     return () => {
@@ -695,6 +742,71 @@ export default function App({ environment }: { environment: PublicEnvironment })
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     notify("Your journal is ready to keep somewhere safe.");
+  };
+  const activateAccountWorkspace = async (keepCompletion = false) => {
+    const repository = accountRepository.current;
+    const accountWorkspace = migrationAccountWorkspace.current;
+    if (!repository || !accountWorkspace) return;
+    const account = await repository.loadWorkspace(accountWorkspace);
+    if (!account) throw new Error("Your account journal is not available yet.");
+    workspaceId.current = accountWorkspace;
+    workspacePersisted.current = true;
+    stateRef.current = account;
+    setS(account);
+    setFocusMins(account.settings.focusMinutes);
+    if (!keepCompletion) setGuestMigration(null);
+    syncEngine.current?.start();
+  };
+  const continueGuestMigration = async () => {
+    const repository = accountRepository.current;
+    const gateway = migrationGateway.current;
+    const guest = migrationGuest.current;
+    const accountWorkspace = migrationAccountWorkspace.current;
+    const engine = syncEngine.current;
+    if (!repository || !gateway || !guest || !accountWorkspace || !engine) return;
+    setGuestMigration((current) => current ? { ...current, phase: "migrating", error: undefined } : current);
+    try {
+      engine.stop();
+      await engine.syncNow();
+      if (engine.getState().lastSyncedAt === undefined) {
+        throw new Error("Tend could not verify the account. Check your connection and try again.");
+      }
+      const { runGuestMigration } = await import("./auth/guestMigration");
+      await runGuestMigration({
+        guestState: guest,
+        workspaceId: accountWorkspace,
+        deviceId: deviceIdFor(),
+        repository,
+        gateway,
+        synchronize: () => engine.syncNow(),
+      });
+      await activateAccountWorkspace(true);
+      setGuestMigration((current) => current ? { ...current, phase: "complete", error: undefined } : current);
+    } catch (error) {
+      engine.stop();
+      setGuestMigration((current) => current ? {
+        ...current,
+        phase: "error",
+        error: error instanceof Error ? error.message : "The migration paused before verification finished.",
+      } : current);
+    }
+  };
+  const exportMigrationRecovery = async () => {
+    const repository = accountRepository.current;
+    const accountWorkspace = migrationAccountWorkspace.current;
+    const recovery = repository && accountWorkspace
+      ? await repository.loadRecoverySnapshot(accountWorkspace)
+      : null;
+    const state = recovery ?? migrationGuest.current;
+    if (!state) return;
+    const text = makeBackup(state);
+    const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `tend-guest-recovery-${today}.json`;
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    notify("Your guest recovery copy is ready.");
   };
   const finishAccountSignOut = async () => {
     if (identity.status !== "signedIn") return;
@@ -1474,6 +1586,21 @@ export default function App({ environment }: { environment: PublicEnvironment })
             <X size={15} />
           </button>
         </div>
+      )}
+      {guestMigration && (
+        <GuestMigrationDialog
+          phase={guestMigration.phase}
+          preview={guestMigration.preview}
+          error={guestMigration.error}
+          onConfirm={() => { void continueGuestMigration(); }}
+          onRetry={() => { void continueGuestMigration(); }}
+          onCancel={() => {
+            if (guestMigration.phase === "error") setGuestMigration(null);
+            else void activateAccountWorkspace();
+          }}
+          onFinish={() => setGuestMigration(null)}
+          onExportRecovery={() => { void exportMigrationRecovery(); }}
+        />
       )}
       <input
         ref={importRef}
