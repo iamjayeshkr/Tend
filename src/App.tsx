@@ -312,6 +312,8 @@ export default function App({ environment }: { environment: PublicEnvironment })
     [focusCategory, setFocusCategory] = useState<Category>("study"),
     [focusMins, setFocusMins] = useState(25),
     [filter, setFilter] = useState("all"),
+    [taskListFilter, setTaskListFilter] = useState("all"),
+    [settingsTab, setSettingsTab] = useState<"general" | "rhythm" | "focus" | "backups">("general"),
     [query, setQuery] = useState(""),
     [historyDate, setHistoryDate] = useState(dateKey()),
     [logKind, setLogKind] = useState("run"),
@@ -1097,6 +1099,47 @@ export default function App({ environment }: { environment: PublicEnvironment })
             </button>
           ))}
         </nav>
+        <div className="sidebar-section-title">
+          <span>Lists</span>
+        </div>
+        <div className="sidebar-lists-nav" role="navigation" aria-label="Lists filters">
+          {[
+            { id: "all", label: "Inbox", color: "#8fa789" },
+            { id: "work", label: "Work", color: "#5a7a9c" },
+            { id: "study", label: "Study", color: "#8a75a0" },
+            { id: "health", label: "Health", color: "#4f8462" },
+            { id: "personal", label: "Personal", color: "#c47f60" },
+          ].map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`sidebar-list-item ${page === "today" && taskListFilter === item.id ? "active" : ""}`}
+              onClick={() => {
+                setTaskListFilter(item.id);
+                go("today");
+              }}
+            >
+              <span className="sidebar-list-dot" style={{ backgroundColor: item.color }} />
+              <span>{item.label}</span>
+              <span className="sidebar-list-count">
+                {item.id === "all"
+                  ? s.tasks.filter((t) => t.date === today && !t.done).length
+                  : s.tasks.filter(
+                      (t) =>
+                        t.date === today &&
+                        !t.done &&
+                        (item.id === "work"
+                          ? ["work", "project"].includes(t.category)
+                          : item.id === "study"
+                          ? t.category === "study"
+                          : item.id === "health"
+                          ? t.category === "exercise"
+                          : ["life", "rest"].includes(t.category))
+                    ).length}
+              </span>
+            </button>
+          ))}
+        </div>
         <div className="sidebar-note">
           <Sprout />
           <p>
@@ -1199,7 +1242,33 @@ export default function App({ environment }: { environment: PublicEnvironment })
         </header>
         <main>
           {!["today","notebook"].includes(page)&&<div className="page-heading"><div>{["rhythm","reflect"].includes(page)&&<button className="back-to-space" onClick={()=>go("you")}><ChevronLeft size={17}/>You</button>}<Pill>{headerCopy[page].label}</Pill><h1>{headerCopy[page].title}</h1><p>{headerCopy[page].subtitle}</p></div></div>}
-          {page === "today" && <TodayPage state={s} now={now} commit={commit} onFocus={openFocus} onTask={()=>setModal("task")} onReview={()=>{setMood(selectedReview?.mood||3);setModal("review")}} onRhythm={()=>{setFilter("plan");go("rhythm")}} onLog={openLog} onWorkout={()=>{setSetCount(0);setModal("workout")}} onWake={()=>quickLife("wake")} onBored={()=>setModal("bored")} onGuide={()=>setShowGuide(true)}/>}
+          {page === "today" && (
+            <TodayPage
+              state={s}
+              now={now}
+              commit={commit}
+              onFocus={openFocus}
+              onTask={() => setModal("task")}
+              onReview={() => {
+                setMood(selectedReview?.mood || 3);
+                setModal("review");
+              }}
+              onRhythm={() => {
+                setFilter("plan");
+                go("rhythm");
+              }}
+              onLog={openLog}
+              onWorkout={() => {
+                setSetCount(0);
+                setModal("workout");
+              }}
+              onWake={() => quickLife("wake")}
+              onBored={() => setModal("bored")}
+              onGuide={() => setShowGuide(true)}
+              activeListFilter={taskListFilter}
+              onSelectFilter={(f) => setTaskListFilter(f)}
+            />
+          )}
           {page === "you" && <><AuthControls onSignOut={requestAccountSignOut} onOpenAuth={() => navigateToView("auth", "#auth")}/><YourSpace state={s} onRhythm={()=>{setFilter("plan");go("rhythm")}} onReflect={()=>go("reflect")} onLog={()=>{setFilter("actual");go("rhythm")}} onSettings={()=>setModal("settings")} onGuide={()=>setShowGuide(true)} onShield={()=>{go("focus");setFocusTab("shield")}} onAccount={()=>setModal("account")} onDocs={()=>navigateToView("docs", "#docs")} onLanding={()=>navigateToView("landing", "#landing")}/></>}
           {page === "rhythm" && (
             <>
@@ -1362,151 +1431,254 @@ export default function App({ environment }: { environment: PublicEnvironment })
               )}
             </>
           )}
-          {page === "focus" && <div className="focus-experience"><div className="focus-tabs" role="tablist" aria-label="Focus tools"><button role="tab" aria-selected={focusTab==="timer"} onClick={()=>setFocusTab("timer")}><Timer size={17}/>Focus timer</button><button role="tab" aria-selected={focusTab==="shield"} onClick={()=>setFocusTab("shield")}><Shield size={17}/>App shield</button></div>{focusTab === "timer" ? <><div className="focus-layout">                <section
-                  className={`focus-card ${active ? "is-focusing" : ""}`}
-                >
-                  <div className="focus-top">
-                    <Pill>
-                      {active
-                        ? active.pausedAt
-                          ? "A MOMENT TO PAUSE"
-                          : "YOUR LITTLE FOCUS BUBBLE"
-                        : "MAKE ROOM FOR ONE THING"}
-                    </Pill>
-                    <Leaf size={20} />
-                  </div>
-                  {!active ? (
-                    <>
-                      <div className="category-options">
-                        {(
-                          ["study", "work", "project", "rest"] as Category[]
-                        ).map((c) => (
-                          <button
-                            className={focusCategory === c ? "selected" : ""}
-                            onClick={() => setFocusCategory(c)}
-                            key={c}
-                          >
-                            <Icon category={c} size={16} />
-                            {categoryLabels[c]}
-                          </button>
-                        ))}
-                      </div>
-                      <input
-                        className="focus-title-input"
-                        aria-label="Focus objective"
-                        placeholder={
-                          focusCategory === "study"
-                            ? "What are you learning today?"
-                            : "What deserves your attention?"
-                        }
-                        maxLength={160}
-                        value={focusTitle}
-                        onChange={(e) => setFocusTitle(e.target.value)}
-                      />
-                    </>
-                  ) : (
-                    <h2 className="active-objective">{active.title}</h2>
-                  )}
-                  <div className="timer-ring">
-                    <svg viewBox="0 0 280 280" className="timer-svg">
-                      <circle
-                        cx="140"
-                        cy="140"
-                        r="126"
-                        className="ring-track"
-                      />
-                      <circle
-                        cx="140"
-                        cy="140"
-                        r="126"
-                        className="ring-progress"
-                        strokeDasharray={792}
-                        strokeDashoffset={
-                          active
-                            ? 792 *
-                              Math.min(
-                                1,
-                                elapsed / (active.durationMinutes * 60000),
-                              )
-                            : 0
-                        }
-                      />
-                    </svg>
-                    <Sprout />
-                    <div
-                      className="timer-digits"
-                      role="timer"
-                      aria-label={`${formatClock(remaining)} remaining`}
+          {page === "focus" && <div className="focus-experience"><div className="focus-tabs" role="tablist" aria-label="Focus tools"><button role="tab" aria-selected={focusTab==="timer"} onClick={()=>setFocusTab("timer")}><Timer size={17}/>Focus timer</button><button role="tab" aria-selected={focusTab==="shield"} onClick={()=>setFocusTab("shield")}><Shield size={17}/>App shield</button></div>{focusTab === "timer" ? (
+              <>
+                <div className="focus-dashboard-layout">
+                  <div className="focus-main-column">
+                    <section
+                      className={`focus-card ${active ? "is-focusing" : ""}`}
                     >
-                      {formatClock(remaining)}
-                    </div>
-                    <span>
-                      {active
-                        ? active.pausedAt
-                          ? "take the breath you need"
-                          : remaining === 0
-                            ? "you made room. well done."
-                            : "just this. just now."
-                        : "a small promise to yourself"}
-                    </span>
-                  </div>
-                  {!active ? (
-                    <>
-                      <div className="duration-options">
-                        {[15, 25, 45, 60, 90].map((m) => (
+                      <div className="focus-top">
+                        <Pill>
+                          {active
+                            ? active.pausedAt
+                              ? "A MOMENT TO PAUSE"
+                              : "YOUR LITTLE FOCUS BUBBLE"
+                            : "MAKE ROOM FOR ONE THING"}
+                        </Pill>
+                        <Leaf size={20} />
+                      </div>
+                      {!active ? (
+                        <>
+                          <div className="category-options">
+                            {(
+                              ["study", "work", "project", "rest"] as Category[]
+                            ).map((c) => (
+                              <button
+                                className={focusCategory === c ? "selected" : ""}
+                                onClick={() => setFocusCategory(c)}
+                                key={c}
+                              >
+                                <Icon category={c} size={16} />
+                                {categoryLabels[c]}
+                              </button>
+                            ))}
+                          </div>
+                          <input
+                            className="focus-title-input"
+                            aria-label="Focus objective"
+                            placeholder={
+                              focusCategory === "study"
+                                ? "What are you learning today?"
+                                : "What deserves your attention?"
+                            }
+                            maxLength={160}
+                            value={focusTitle}
+                            onChange={(e) => setFocusTitle(e.target.value)}
+                          />
+                        </>
+                      ) : (
+                        <h2 className="active-objective">{active.title}</h2>
+                      )}
+                      <div className="timer-ring">
+                        <svg viewBox="0 0 280 280" className="timer-svg">
+                          <circle
+                            cx="140"
+                            cy="140"
+                            r="126"
+                            className="ring-track"
+                          />
+                          <circle
+                            cx="140"
+                            cy="140"
+                            r="126"
+                            className="ring-progress"
+                            strokeDasharray={792}
+                            strokeDashoffset={
+                              active
+                                ? 792 *
+                                  Math.min(
+                                    1,
+                                    elapsed / (active.durationMinutes * 60000),
+                                  )
+                                : 0
+                            }
+                          />
+                        </svg>
+                        <Sprout />
+                        <div
+                          className="timer-digits"
+                          role="timer"
+                          aria-label={`${formatClock(remaining)} remaining`}
+                        >
+                          {formatClock(remaining)}
+                        </div>
+                        <span>
+                          {active
+                            ? active.pausedAt
+                              ? "take the breath you need"
+                              : remaining === 0
+                                ? "you made room. well done."
+                                : "just this. just now."
+                            : "a small promise to yourself"}
+                        </span>
+                      </div>
+                      {!active ? (
+                        <>
+                          <div className="duration-options">
+                            {[15, 25, 45, 60, 90].map((m) => (
+                              <button
+                                className={focusMins === m ? "selected" : ""}
+                                onClick={() => setFocusMins(m)}
+                                key={m}
+                              >
+                                {m}
+                                <small>min</small>
+                              </button>
+                            ))}
+                          </div>
                           <button
-                            className={focusMins === m ? "selected" : ""}
-                            onClick={() => setFocusMins(m)}
-                            key={m}
+                            className="primary focus-start"
+                            onClick={startTimer}
+                            disabled={focusBusy}
                           >
-                            {m}
-                            <small>min</small>
+                            <Play size={17} fill="currentColor" />
+                            Start focus
+                            <ArrowRight size={18} />
                           </button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="timer-controls">
+                            <button className="outline" onClick={toggleTimer}>
+                              {active.pausedAt ? (
+                                <Play size={18} />
+                              ) : (
+                                <Pause size={18} />
+                              )}{" "}
+                              {active.pausedAt ? "Resume" : "Pause"}
+                            </button>
+                            <button
+                              className="primary"
+                              onClick={() => setModal("finish")}
+                            >
+                              <Check size={18} />
+                              Finish session
+                            </button>
+                          </div>
+                          {elapsed > 6 * 3600000 && (
+                            <p className="warning">
+                              This session has run for over six hours. Please check
+                              the duration before saving.
+                            </p>
+                          )}
+                        </>
+                      )}
+                      <p className="focus-footer">
+                        <Shield size={13} />
+                        Close Tend if you like. Your timer keeps its place.
+                      </p>
+                    </section>
+                  </div>
+                  <aside className="focus-side-column">
+                    <section className="panel focus-support-card">
+                      <div className="focus-support-heading">
+                        <span className="eyebrow"><CheckCircle2 size={13} />CONNECTED TASK</span>
+                      </div>
+                      <h4>{active ? active.title : focusTitle || (focusTaskId ? s.tasks.find(t=>t.id===focusTaskId)?.title : "Freeform focus")}</h4>
+                      <p className="focus-support-hint">
+                        {active ? "Your focused time will be recorded when you finish." : "Connect to a task from today's list or set your own objective."}
+                      </p>
+                      {!active && (
+                        <button type="button" className="text-button" onClick={() => go("today")}>
+                          Pick from Today's tasks
+                          <ArrowRight size={14} />
+                        </button>
+                      )}
+                    </section>
+
+                    <section className="panel focus-support-card">
+                      <div className="focus-support-heading">
+                        <span className="eyebrow"><Timer size={13} />TODAY'S FOCUS</span>
+                      </div>
+                      <div className="focus-metrics-split">
+                        <div>
+                          <strong>{formatMinutes(s.activities.filter(a => dateKey(a.start) === today).reduce((acc, a) => acc + (a.end - a.start) / 60000, 0))}</strong>
+                          <span>focused today</span>
+                        </div>
+                        <div>
+                          <strong>{s.activities.filter(a => dateKey(a.start) === today).length}</strong>
+                          <span>sessions done</span>
+                        </div>
+                      </div>
+                      <div className="focus-mini-week-chart">
+                        {weekStats(s, new Date(now)).map((d) => (
+                          <div key={d.date} className={`mini-chart-col ${d.date === today ? "is-today" : ""}`}>
+                            <div className="mini-chart-bar-slot">
+                              <div
+                                className="mini-chart-bar"
+                                style={{ height: `${Math.min(100, Math.max(8, Math.round((d.focusMinutes / 120) * 100)))}%` }}
+                              />
+                            </div>
+                            <span>{d.label.slice(0, 1)}</span>
+                          </div>
                         ))}
                       </div>
-                      <button
-                        className="primary focus-start"
-                        onClick={startTimer}
-                        disabled={focusBusy}
-                      >
-                        <Play size={17} fill="currentColor" />
-                        Start focus
-                        <ArrowRight size={18} />
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <div className="timer-controls">
-                        <button className="outline" onClick={toggleTimer}>
-                          {active.pausedAt ? (
-                            <Play size={18} />
-                          ) : (
-                            <Pause size={18} />
-                          )}{" "}
-                          {active.pausedAt ? "Resume" : "Pause"}
-                        </button>
-                        <button
-                          className="primary"
-                          onClick={() => setModal("finish")}
-                        >
-                          <Check size={18} />
-                          Finish session
-                        </button>
+                    </section>
+
+                    <section className="panel focus-support-card">
+                      <div className="focus-support-heading">
+                        <span className="eyebrow"><Clock size={13} />RECENT SESSIONS</span>
                       </div>
-                      {elapsed > 6 * 3600000 && (
-                        <p className="warning">
-                          This session has run for over six hours. Please check
-                          the duration before saving.
-                        </p>
-                      )}
-                    </>
-                  )}
-                  <p className="focus-footer">
-                    <Shield size={13} />
-                    Close Tend if you like. Your timer keeps its place.
-                  </p>
-                </section>
-</div><button className="shield-entry" onClick={()=>setFocusTab("shield")}><Shield size={20}/><span><strong>{capabilities?.accessibility && capabilities?.protectionEnabled ? "Your app shield is enabled" : "Keep distractions outside"}</strong><small>{capabilities?.accessibility && capabilities?.protectionEnabled ? "Manage selected apps and daily limits" : "Set up blocking for Instagram & YouTube"}</small></span><ChevronRight size={19}/></button><details className="focus-help"><summary>How a focus session works<HelpCircle size={16}/></summary><ol><li>Name one task and choose how long to focus.</li><li>Start the timer. If set up, your app shield pauses access to selected apps.</li><li>Finish the session to save your time and what you learned.</li></ol></details></> : <><ProtectionPanel timer={active} settings={s.settings} notify={notify}/><details className="budget-preferences"><summary>Daily allowances<span>{s.settings.instagramLimit}m Instagram · {s.settings.youtubeLimit}m YouTube</span></summary><p>Used when daily-limit protection and Usage Access are enabled.</p><form onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);commit(v=>({...v,settings:{...v.settings,instagramLimit:Number(f.get("instagram")),youtubeLimit:Number(f.get("youtube"))}})).then(ok=>{if(ok&&stateRef.current){alarmSync(stateRef.current);refreshNative();notify("Daily allowances saved.")}})}}><div className="form-row"><Field label="Instagram (minutes per day)"><input name="instagram" type="number" min="1" max="1440" defaultValue={s.settings.instagramLimit} required/></Field><Field label="YouTube (minutes per day)"><input name="youtube" type="number" min="1" max="1440" defaultValue={s.settings.youtubeLimit} required/></Field></div><button className="outline" type="submit">Save allowances<Check size={17}/></button></form></details></>}</div>}
+                      <div className="focus-recent-list">
+                        {s.activities.filter(a => dateKey(a.start) === today).slice(0, 3).map((a) => (
+                          <div key={a.id} className="focus-recent-row">
+                            <span className={`dot ${a.category}`} />
+                            <div className="focus-recent-info">
+                              <strong>{a.title}</strong>
+                              <small>{formatMinutes((a.end - a.start) / 60000)}</small>
+                            </div>
+                          </div>
+                        ))}
+                        {!s.activities.filter(a => dateKey(a.start) === today).length && (
+                          <p className="empty-subtext">No completed sessions yet today. Your first promise starts here.</p>
+                        )}
+                      </div>
+                    </section>
+
+                    <section className="panel focus-support-card focus-shield-card">
+                      <div className="focus-support-heading">
+                        <span className="eyebrow"><Shield size={13} />APP SHIELD</span>
+                      </div>
+                      <h4>{capabilities?.accessibility && capabilities?.protectionEnabled ? "Shield active" : "Distraction blocking ready"}</h4>
+                      <p className="focus-support-hint">
+                        {s.settings.instagramLimit}m Instagram · {s.settings.youtubeLimit}m YouTube daily limits
+                      </p>
+                      <button className="outline small" type="button" onClick={() => setFocusTab("shield")}>
+                        Manage shield
+                        <ChevronRight size={14} />
+                      </button>
+                    </section>
+                  </aside>
+                </div>
+                <button className="shield-entry" onClick={() => setFocusTab("shield")}>
+                  <Shield size={20} />
+                  <span>
+                    <strong>{capabilities?.accessibility && capabilities?.protectionEnabled ? "Your app shield is enabled" : "Keep distractions outside"}</strong>
+                    <small>{capabilities?.accessibility && capabilities?.protectionEnabled ? "Manage selected apps and daily limits" : "Set up blocking for Instagram & YouTube"}</small>
+                  </span>
+                  <ChevronRight size={19} />
+                </button>
+                <details className="focus-help">
+                  <summary>How a focus session works<HelpCircle size={16} /></summary>
+                  <ol>
+                    <li>Name one task and choose how long to focus.</li>
+                    <li>Start the timer. If set up, your app shield pauses access to selected apps.</li>
+                    <li>Finish the session to save your time and what you learned.</li>
+                  </ol>
+                </details>
+              </>
+            ) : <><ProtectionPanel timer={active} settings={s.settings} notify={notify}/><details className="budget-preferences"><summary>Daily allowances<span>{s.settings.instagramLimit}m Instagram · {s.settings.youtubeLimit}m YouTube</span></summary><p>Used when daily-limit protection and Usage Access are enabled.</p><form onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);commit(v=>({...v,settings:{...v.settings,instagramLimit:Number(f.get("instagram")),youtubeLimit:Number(f.get("youtube"))}})).then(ok=>{if(ok&&stateRef.current){alarmSync(stateRef.current);refreshNative();notify("Daily allowances saved.")}})}}><div className="form-row"><Field label="Instagram (minutes per day)"><input name="instagram" type="number" min="1" max="1440" defaultValue={s.settings.instagramLimit} required/></Field><Field label="YouTube (minutes per day)"><input name="youtube" type="number" min="1" max="1440" defaultValue={s.settings.youtubeLimit} required/></Field></div><button className="outline" type="submit">Save allowances<Check size={17}/></button></form></details></>}</div>}
           {page === "notebook" && <Notebook state={s} commit={commit} notify={notify}/>}
           {page === "reflect" &&
             (() => {
@@ -1919,167 +2091,233 @@ export default function App({ environment }: { environment: PublicEnvironment })
                   })
                 }
               >
-                <p className="modal-intro">
-                  No accounts. No noise. Just a rhythm that feels like you.
-                </p>
-                <Field label="What should we call you?">
-                  <input
-                    name="name"
-                    placeholder="Your first name"
-                    defaultValue={s.settings.name}
-                    maxLength={40}
-                  />
-                </Field>
-                <div className="form-row">
-                  <Field label="Wake-up time">
-                    <input
-                      type="time"
-                      name="wake"
-                      defaultValue={s.settings.wake}
-                      required
-                    />
-                  </Field>
-                  <Field label="Wind-down time">
-                    <input
-                      type="time"
-                      name="sleep"
-                      defaultValue={s.settings.sleep}
-                      required
-                    />
-                  </Field>
-                </div>
-                <Field label="Your usual focus session (minutes)">
-                  <input
-                    type="number"
-                    name="focus"
-                    min="1"
-                    max="360"
-                    defaultValue={s.settings.focusMinutes}
-                    required
-                  />
-                </Field>
-                {modal === "settings" && (
+                {modal === "setup" ? (
                   <>
-                    <div className="setting-row">
-                      <div>
-                        <strong>After-dark paper</strong>
-                        <p>A softer, darker space for evenings.</p>
-                      </div>
-                      <Toggle
-                        label="Dark theme"
-                        checked={s.settings.theme === "dark"}
-                        onChange={() =>
-                          commit((v) => ({
-                            ...v,
-                            settings: {
-                              ...v.settings,
-                              theme:
-                                v.settings.theme === "dark" ? "light" : "dark",
-                            },
-                          }))
-                        }
+                    <p className="modal-intro">
+                      No accounts. No noise. Just a rhythm that feels like you.
+                    </p>
+                    <Field label="What should we call you?">
+                      <input
+                        name="name"
+                        placeholder="Your first name"
+                        defaultValue={s.settings.name}
+                        maxLength={40}
                       />
+                    </Field>
+                    <div className="form-row">
+                      <Field label="Wake-up time">
+                        <input
+                          type="time"
+                          name="wake"
+                          defaultValue={s.settings.wake}
+                          required
+                        />
+                      </Field>
+                      <Field label="Wind-down time">
+                        <input
+                          type="time"
+                          name="sleep"
+                          defaultValue={s.settings.sleep}
+                          required
+                        />
+                      </Field>
                     </div>
-                    <div className="setting-row">
-                      <div>
-                        <strong>Wake & wind-down reminders</strong>
-                        <p>
-                          {native()
-                            ? "Daily Android alarms at your chosen times."
-                            : "Native alarms are available in the Android app."}
-                        </p>
-                      </div>
-                      <Toggle
-                        label="Daily reminders"
-                        checked={s.settings.notifications}
-                        onChange={async () => {
-                          const enabled = !s.settings.notifications;
-                          if (enabled && native())
-                            native().requestPermission("notifications");
-                          if (
-                            (await commit((v) => ({
+                    <Field label="Your usual focus session (minutes)">
+                      <input
+                        type="number"
+                        name="focus"
+                        min="1"
+                        max="360"
+                        defaultValue={s.settings.focusMinutes}
+                        required
+                      />
+                    </Field>
+                  </>
+                ) : (
+                  <div className="settings-sectioned-container">
+                    <div className="settings-group" id="settings-general">
+                      <h4 className="settings-group-title">General & Appearance</h4>
+                      <Field label="What should we call you?">
+                        <input
+                          name="name"
+                          placeholder="Your first name"
+                          defaultValue={s.settings.name}
+                          maxLength={40}
+                        />
+                      </Field>
+                      <div className="setting-row">
+                        <div>
+                          <strong>After-dark paper</strong>
+                          <p>A softer, darker space for evenings.</p>
+                        </div>
+                        <Toggle
+                          label="Dark theme"
+                          checked={s.settings.theme === "dark"}
+                          onChange={() =>
+                            commit((v) => ({
                               ...v,
                               settings: {
                                 ...v.settings,
-                                notifications: enabled,
+                                theme:
+                                  v.settings.theme === "dark" ? "light" : "dark",
                               },
-                            }))) &&
-                            stateRef.current
-                          )
-                            alarmSync(stateRef.current);
-                        }}
-                      />
+                            }))
+                          }
+                        />
+                      </div>
                     </div>
-                    {native() && (
+
+                    <div className="settings-group" id="settings-rhythm">
+                      <h4 className="settings-group-title">Daily Rhythm & Reminders</h4>
+                      <div className="form-row">
+                        <Field label="Wake-up time">
+                          <input
+                            type="time"
+                            name="wake"
+                            defaultValue={s.settings.wake}
+                            required
+                          />
+                        </Field>
+                        <Field label="Wind-down time">
+                          <input
+                            type="time"
+                            name="sleep"
+                            defaultValue={s.settings.sleep}
+                            required
+                          />
+                        </Field>
+                      </div>
+                      <div className="setting-row">
+                        <div>
+                          <strong>Wake & wind-down reminders</strong>
+                          <p>
+                            {native()
+                              ? "Daily Android alarms at your chosen times."
+                              : "Native alarms are available in the Android app."}
+                          </p>
+                        </div>
+                        <Toggle
+                          label="Daily reminders"
+                          checked={s.settings.notifications}
+                          onChange={async () => {
+                            const enabled = !s.settings.notifications;
+                            if (enabled && native())
+                              native().requestPermission("notifications");
+                            if (
+                              (await commit((v) => ({
+                                ...v,
+                                settings: {
+                                  ...v.settings,
+                                  notifications: enabled,
+                                },
+                              }))) &&
+                              stateRef.current
+                            )
+                              alarmSync(stateRef.current);
+                          }}
+                        />
+                      </div>
+                      {native() && (
+                        <div className="permissions-box">
+                          <p>
+                            <strong>Android permissions</strong>
+                          </p>
+                          <p>
+                            Notifications:{" "}
+                            {capabilities?.notifications
+                              ? "enabled"
+                              : "not enabled"}{" "}
+                            · Precise alarms:{" "}
+                            {capabilities?.exactAlarms
+                              ? "enabled"
+                              : "not enabled"}
+                          </p>
+                          <p>
+                            Without precise alarm access, Android may delay
+                            reminders. Sound also follows your system notification
+                            and Do Not Disturb settings.
+                          </p>
+                          <div className="button-row">
+                            <button
+                              className="outline small"
+                              type="button"
+                              onClick={() =>
+                                native().requestPermission("notifications")
+                              }
+                            >
+                              Notifications
+                            </button>
+                            <button
+                              className="outline small"
+                              type="button"
+                              onClick={() => native().requestPermission("alarms")}
+                            >
+                              Precise alarms
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="settings-group" id="settings-focus">
+                      <h4 className="settings-group-title">Focus & Shield</h4>
+                      <Field label="Your usual focus session (minutes)">
+                        <input
+                          type="number"
+                          name="focus"
+                          min="1"
+                          max="360"
+                          defaultValue={s.settings.focusMinutes}
+                          required
+                        />
+                      </Field>
                       <div className="permissions-box">
                         <p>
-                          <strong>Android permissions</strong>
+                          <strong>App Shield daily limits</strong>
                         </p>
                         <p>
-                          Notifications:{" "}
-                          {capabilities?.notifications
-                            ? "enabled"
-                            : "not enabled"}{" "}
-                          · Precise alarms:{" "}
-                          {capabilities?.exactAlarms
-                            ? "enabled"
-                            : "not enabled"}
+                          {s.settings.instagramLimit}m Instagram ·{" "}
+                          {s.settings.youtubeLimit}m YouTube
                         </p>
                         <p>
-                          Without precise alarm access, Android may delay
-                          reminders. Sound also follows your system notification
-                          and Do Not Disturb settings.
+                          Configure app blocking and daily allowances in Focus &gt; App shield.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="settings-group" id="settings-backups">
+                      <div className="backup-section" style={{ borderTop: "none", paddingTop: 0, marginTop: 0 }}>
+                        <h4 className="settings-group-title">Backups & Privacy</h4>
+                        <h3>Your journal belongs to you.</h3>
+                        <p>
+                          Save a backup before changing phones. Backups contain
+                          your personal logs and are not encrypted.
                         </p>
                         <div className="button-row">
                           <button
-                            className="outline small"
                             type="button"
-                            onClick={() =>
-                              native().requestPermission("notifications")
-                            }
+                            className="outline"
+                            onClick={exportBackup}
                           >
-                            Notifications
+                            <Download size={17} />
+                            Export backup
                           </button>
                           <button
-                            className="outline small"
                             type="button"
-                            onClick={() => native().requestPermission("alarms")}
+                            className="outline"
+                            onClick={() =>
+                              native()
+                                ? native().importBackup()
+                                : importRef.current?.click()
+                            }
                           >
-                            Precise alarms
+                            <Upload size={17} />
+                            Restore
                           </button>
                         </div>
                       </div>
-                    )}
-                    <div className="backup-section">
-                      <h3>Your journal belongs to you.</h3>
-                      <p>
-                        Save a backup before changing phones. Backups contain
-                        your personal logs and are not encrypted.
-                      </p>
-                      <div className="button-row">
-                        <button
-                          type="button"
-                          className="outline"
-                          onClick={exportBackup}
-                        >
-                          <Download size={17} />
-                          Export backup
-                        </button>
-                        <button
-                          type="button"
-                          className="outline"
-                          onClick={() =>
-                            native()
-                              ? native().importBackup()
-                              : importRef.current?.click()
-                          }
-                        >
-                          <Upload size={17} />
-                          Restore
-                        </button>
-                      </div>
                     </div>
-                  </>
+                  </div>
                 )}
                 <button className="primary full" disabled={busy}>
                   {modal === "setup"
