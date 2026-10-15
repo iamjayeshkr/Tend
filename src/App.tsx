@@ -224,27 +224,32 @@ export default function App({ environment }: { environment: PublicEnvironment })
   const [currentView, setCurrentView] = useState<"app" | "landing" | "docs" | "auth">(() => {
     if (typeof window !== "undefined") {
       const hash = window.location.hash.toLowerCase();
-      if (hash.startsWith("#landing")) return "landing";
+      if (hash.startsWith("#app") || hash.startsWith("#today") || hash.startsWith("#focus") || hash.startsWith("#notebook") || hash.startsWith("#you")) {
+        return "app";
+      }
       if (hash.startsWith("#docs")) return "docs";
       if (hash.startsWith("#auth") || hash.startsWith("#signin") || hash.startsWith("#signup")) return "auth";
+      if (hash.startsWith("#landing")) return "landing";
     }
-    return "app";
+    return "landing";
   });
   const [authInitialMode, setAuthInitialMode] = useState<"signin" | "signup">("signin");
 
   useEffect(() => {
     const syncHash = () => {
       const hash = window.location.hash.toLowerCase();
-      if (hash.startsWith("#landing")) setCurrentView("landing");
-      else if (hash.startsWith("#docs")) setCurrentView("docs");
-      else if (hash.startsWith("#signup")) {
+      if (hash.startsWith("#app") || hash.startsWith("#today") || hash.startsWith("#focus") || hash.startsWith("#notebook") || hash.startsWith("#you")) {
+        setCurrentView("app");
+      } else if (hash.startsWith("#docs")) {
+        setCurrentView("docs");
+      } else if (hash.startsWith("#signup")) {
         setAuthInitialMode("signup");
         setCurrentView("auth");
       } else if (hash.startsWith("#auth") || hash.startsWith("#signin")) {
         setAuthInitialMode("signin");
         setCurrentView("auth");
-      } else if (hash === "" || hash === "#" || hash.startsWith("#today") || hash.startsWith("#focus") || hash.startsWith("#notebook") || hash.startsWith("#you")) {
-        setCurrentView("app");
+      } else if (hash.startsWith("#landing") || hash === "" || hash === "#") {
+        setCurrentView("landing");
       }
     };
     window.addEventListener("hashchange", syncHash);
@@ -254,12 +259,16 @@ export default function App({ environment }: { environment: PublicEnvironment })
   const navigateToView = (view: "app" | "landing" | "docs" | "auth", hash?: string) => {
     setCurrentView(view);
     if (typeof window !== "undefined") {
-      if (view === "app") {
-        if (window.location.hash.startsWith("#landing") || window.location.hash.startsWith("#docs") || window.location.hash.startsWith("#auth") || window.location.hash.startsWith("#signup")) {
-          history.pushState(null, "", window.location.pathname + window.location.search);
-        }
-      } else {
-        window.location.hash = hash || `#${view}`;
+      if (hash) {
+        window.location.hash = hash;
+      } else if (view === "app") {
+        window.location.hash = "#app";
+      } else if (view === "landing") {
+        window.location.hash = "#landing";
+      } else if (view === "docs") {
+        window.location.hash = "#docs";
+      } else if (view === "auth") {
+        window.location.hash = "#auth";
       }
     }
   };
@@ -624,7 +633,8 @@ export default function App({ environment }: { environment: PublicEnvironment })
   if (currentView === "landing") {
     return (
       <LandingPage
-        onLaunchApp={() => navigateToView("app")}
+        hasOnboarded={Boolean(s && s.onboarded)}
+        onLaunchApp={() => navigateToView("app", "#app")}
         onOpenDocs={() => navigateToView("docs", "#docs")}
         onOpenAuth={(mode) => {
           setAuthInitialMode(mode ?? "signin");

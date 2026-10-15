@@ -32,6 +32,7 @@ export type LandingPageProps = {
   onOpenDocs: () => void
   onOpenAuth: (initialMode?: 'signin' | 'signup') => void
   onOpenTerms: () => void
+  hasOnboarded?: boolean
 }
 
 export function LandingPage({
@@ -39,6 +40,7 @@ export function LandingPage({
   onOpenDocs,
   onOpenAuth,
   onOpenTerms,
+  hasOnboarded = false,
 }: LandingPageProps) {
   const identity = useTendIdentity()
 
@@ -98,9 +100,9 @@ export function LandingPage({
           </nav>
 
           <div className="landing-nav-actions">
-            {identity.status === 'signedIn' ? (
-              <button className="outline nav-auth-btn" onClick={onLaunchApp}>
-                <span>Workspace</span>
+            {identity.status === 'signedIn' || hasOnboarded ? (
+              <button className="primary nav-launch-btn" onClick={onLaunchApp}>
+                <span>Open Dashboard</span>
                 <ArrowRight size={15} />
               </button>
             ) : (
@@ -109,7 +111,7 @@ export function LandingPage({
                   Sign in
                 </button>
                 <button className="primary nav-launch-btn" onClick={onLaunchApp}>
-                  <span>Open App</span>
+                  <span>Open Dashboard</span>
                   <ArrowRight size={16} />
                 </button>
               </>
@@ -139,7 +141,7 @@ export function LandingPage({
 
           <div className="hero-cta-group">
             <button className="primary hero-primary-cta" onClick={onLaunchApp}>
-              <span>Launch Free Workspace</span>
+              <span>{hasOnboarded ? 'Open Your Dashboard' : 'Open Tend Dashboard'}</span>
               <ArrowRight size={18} />
             </button>
             <a href="#android" className="outline hero-secondary-cta">
@@ -231,7 +233,9 @@ export function LandingPage({
 
             <div className="demo-card-footer">
               <span className="hand">“good things take tending.”</span>
-              <Sprout className="demo-mini-sprout" />
+              <button type="button" className="text-button demo-dashboard-link" onClick={onLaunchApp} style={{fontSize:'12px',fontWeight:600,color:'#234533',display:'inline-flex',alignItems:'center',gap:'4px'}}>
+                Open Dashboard <ArrowRight size={13} />
+              </button>
             </div>
           </div>
         </div>
@@ -568,7 +572,7 @@ export function LandingPage({
           </p>
           <div className="cta-buttons">
             <button className="primary cta-large-btn" onClick={onLaunchApp}>
-              <span>Enter Tend Workspace</span>
+              <span>Enter Tend Dashboard</span>
               <ArrowRight size={18} />
             </button>
             <button className="outline cta-docs-btn" onClick={onOpenDocs}>

@@ -5,7 +5,7 @@ import { schema1CompleteState, schema1InvalidBackups } from '../src/test-fixture
 const FIRST_TASK = 'Understand binary search';
 
 async function openApp(page: Page) {
-  await page.goto('/');
+  await page.goto('/#app');
   await expect(page.getByRole('button', { name: 'Make it mine', exact: true })).toBeVisible();
 }
 
@@ -72,6 +72,14 @@ async function restoreFile(page: Page, state: unknown) {
 test.beforeEach(async ({ page }) => {
   await page.clock.install({ time: new Date('2026-09-13T10:00:00+05:30') });
   await page.clock.pauseAt(new Date('2026-09-13T10:00:01+05:30'));
+});
+
+test('landing page loads at root and opens app dashboard and docs', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: /Make space for/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Open Dashboard/i }).first()).toBeVisible();
+  await page.getByRole('button', { name: /Open Dashboard/i }).first().click();
+  await expect(page.getByRole('button', { name: 'Make it mine', exact: true })).toBeVisible();
 });
 
 test('guided first run leads to one task and a four-tab app', async ({ page }, testInfo) => {
