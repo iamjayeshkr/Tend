@@ -547,304 +547,423 @@ export function TodayPage({
         </div>
       </header>
 
-      {/* B. Hero Card */}
-      <section className="next-step-card" aria-label="Your next step">
-        <div className="next-step-content">
-          <span className="eyebrow">
-            <i className="live-dot" />
-            {active ? 'YOU MADE SPACE' : next ? 'YOUR NEXT SMALL STEP' : 'ONE THING AT A TIME'}
-          </span>
-          <h2>
-            {active
-              ? active.title
-              : next
-              ? next.title
-              : done.length
-              ? 'A little room to breathe.'
-              : 'One thing at a time.'}
-          </h2>
-          <p>
-            {active
-              ? active.pausedAt
-                ? 'Your session is paused. Pick it up when you’re ready.'
-                : 'Stay with it. Your timer is keeping track.'
-              : next
-              ? `${state.settings.focusMinutes} minutes is a good place to begin. The rest can wait.`
-              : done.length
-              ? 'Your list is done. Rest, reflect, or choose something new.'
-              : 'Choose a task, set your time, and give it your attention.'}
-          </p>
-          <div className="hero-button-row">
-            <button
-              className="primary"
-              onClick={() =>
-                active
-                  ? onFocus()
-                  : next
-                  ? onFocus(next.title, next.category)
-                  : done.length
-                  ? onReview()
-                  : onTask()
-              }
-            >
-              {active ? (
-                <>
-                  <Timer size={17} />
-                  {formatClock(remaining)} · {active.pausedAt ? 'Resume focus' : 'Back to focus'}
-                </>
-              ) : next ? (
-                <>
-                  <Timer size={17} />
-                  Focus on this
-                </>
-              ) : done.length ? (
-                <>
-                  <Moon size={17} />
-                  Reflect on today
-                </>
-              ) : (
-                <>
-                  <Plus size={17} />
-                  Start focus
-                </>
-              )}
-              <ArrowRight size={17} />
-            </button>
-            <button className="outline hero-secondary-btn" onClick={onTask}>
-              <Plus size={16} />
-              Add a task
-            </button>
-          </div>
-          {firstDay && !active && (
-            <span className="first-step-hint">
-              {next
-                ? 'Next: your focus timer. You choose when to start.'
-                : 'Start small. You can add more later.'}
+      {/* B. Hero Grid: Next Step & Mini Calendar */}
+      <div className="today-hero-grid">
+        <section className="next-step-card" aria-label="Your next step">
+          <div className="next-step-content">
+            <span className="eyebrow">
+              <i className="live-dot" />
+              {active ? 'YOU MADE SPACE' : next ? 'YOUR NEXT SMALL STEP' : 'ONE THING AT A TIME'}
             </span>
-          )}
-        </div>
-        <div className="next-step-art">
-          <img
-            src="/assets/plants/minimal-potted.png"
-            alt="Botanical potted plant"
-            className="plant-hero-art"
-          />
-          <span className="hand">good things take tending.</span>
-        </div>
-      </section>
-
-      {/* C & D & E & F: Two-column Desktop Layout / Stacked Mobile */}
-      <div className="today-dashboard-grid">
-        {/* Main Column */}
-        <div className="today-main-col">
-          {/* Today's Tasks Card */}
-          <section className="panel today-tasks-card">
-            <div className="clean-section-heading">
-              <div>
-                <h2>
-                  Today's tasks
-                  <span>
-                    {filteredTasks.length ? `${done.length}/${filteredTasks.length}` : 'for today'}
-                  </span>
-                </h2>
-                {selectedDate !== today && (
-                  <span className="selected-date-pill">
-                    Viewing {selectedDate}
-                    <button type="button" onClick={() => setSelectedDate(today)}>
-                      Back to today
-                    </button>
-                  </span>
+            <h2>
+              {active
+                ? active.title
+                : next
+                ? next.title
+                : done.length
+                ? 'A little room to breathe.'
+                : 'One thing at a time.'}
+            </h2>
+            <p>
+              {active
+                ? active.pausedAt
+                  ? 'Your session is paused. Pick it up when you’re ready.'
+                  : 'Stay with it. Your timer is keeping track.'
+                : next
+                ? `${state.settings.focusMinutes} minutes is a good place to begin. The rest can wait.`
+                : done.length
+                ? 'Your list is done. Rest, reflect, or choose something new.'
+                : 'Choose a task, set your time, and give it your attention.'}
+            </p>
+            <div className="hero-button-row">
+              <button
+                className="primary"
+                onClick={() =>
+                  active
+                    ? onFocus()
+                    : next
+                    ? onFocus(next.title, next.category)
+                    : done.length
+                    ? onReview()
+                    : onTask()
+                }
+              >
+                {active ? (
+                  <>
+                    <Timer size={17} />
+                    {formatClock(remaining)} · {active.pausedAt ? 'Resume focus' : 'Back to focus'}
+                  </>
+                ) : next ? (
+                  <>
+                    <Timer size={17} />
+                    Focus on this
+                  </>
+                ) : done.length ? (
+                  <>
+                    <Moon size={17} />
+                    Reflect on today
+                  </>
+                ) : (
+                  <>
+                    <Plus size={17} />
+                    Start focus
+                  </>
                 )}
-              </div>
-              <button className="icon-button" aria-label="Add task" onClick={onTask}>
-                <Plus size={20} />
+                <ArrowRight size={17} />
+              </button>
+              <button className="outline hero-secondary-btn" onClick={onTask}>
+                <Plus size={16} />
+                Add a task
               </button>
             </div>
+            {firstDay && !active && (
+              <span className="first-step-hint">
+                {next
+                  ? 'Next: your focus timer. You choose when to start.'
+                  : 'Start small. You can add more later.'}
+              </span>
+            )}
+          </div>
+          <div className="next-step-art">
+            <img
+              src="/assets/plants/minimal-potted.png"
+              alt="Botanical potted plant"
+              className="plant-hero-art"
+            />
+            <span className="hand">good things take tending.</span>
+          </div>
+        </section>
 
-            {/* Category Filter Pills */}
-            <div className="task-filter-pills" role="tablist" aria-label="Task category filters">
-              {[
-                { id: 'all', label: 'All' },
-                { id: 'work', label: 'Work' },
-                { id: 'study', label: 'Study' },
-                { id: 'health', label: 'Health' },
-                { id: 'personal', label: 'Personal' },
-              ].map((f) => (
-                <button
-                  key={f.id}
-                  role="tab"
-                  aria-selected={activeFilter === f.id}
-                  className={`filter-pill ${activeFilter === f.id ? 'active' : ''}`}
-                  onClick={() => setFilter(f.id)}
-                >
-                  {f.label}
-                </button>
-              ))}
+        {/* Mini Calendar Card */}
+        <section className="panel mini-calendar-card">
+          <div className="calendar-card-header">
+            <h3>{calendarData.monthName}</h3>
+            <div className="calendar-nav-buttons">
+              <button
+                type="button"
+                aria-label="Previous month"
+                className="icon-button small"
+                onClick={() => setCalMonthOffset((v) => v - 1)}
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                type="button"
+                aria-label="Next month"
+                className="icon-button small"
+                onClick={() => setCalMonthOffset((v) => v + 1)}
+              >
+                <ChevronRight size={16} />
+              </button>
             </div>
-
-            {/* Inline Quick-Add Task Field */}
-            <form className="task-quick-add" onSubmit={handleQuickAdd}>
-              <input
-                type="text"
-                placeholder="+ Add a task to this day... (press Enter)"
-                value={quickTitle}
-                onChange={(e) => setQuickTitle(e.target.value)}
-                maxLength={160}
-              />
-              {quickTitle.trim() && (
-                <button type="submit" className="primary small quick-add-submit">
-                  Add
+          </div>
+          <div className="calendar-weekdays-row">
+            {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((w) => (
+              <span key={w} className="weekday-label">
+                {w}
+              </span>
+            ))}
+          </div>
+          <div className="calendar-grid">
+            {calendarData.days.map((item, idx) => {
+              if (!item) return <span key={`blank-${idx}`} className="cal-cell empty-cell" />;
+              const isToday = item.dateStr === today;
+              const isSelected = item.dateStr === selectedDate;
+              const hasTasks = scheduledDates.has(item.dateStr);
+              return (
+                <button
+                  key={item.dateStr}
+                  type="button"
+                  className={`cal-cell ${isToday ? 'is-today' : ''} ${
+                    isSelected ? 'is-selected' : ''
+                  } ${hasTasks ? 'has-tasks' : ''}`}
+                  onClick={() => setSelectedDate(item.dateStr)}
+                >
+                  <span>{item.day}</span>
+                  {hasTasks && <i className="cal-dot" />}
                 </button>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+
+      {/* C. 3-Column Today Cards Grid */}
+      <div className="today-cards-grid">
+        {/* Column 1: Today's Tasks */}
+        <section className="panel today-tasks-card">
+          <div className="clean-section-heading">
+            <div>
+              <h2>
+                Today's tasks
+                <span>
+                  {filteredTasks.length ? `${done.length}/${filteredTasks.length}` : 'for today'}
+                </span>
+              </h2>
+              {selectedDate !== today && (
+                <span className="selected-date-pill">
+                  Viewing {selectedDate}
+                  <button type="button" onClick={() => setSelectedDate(today)}>
+                    Back to today
+                  </button>
+                </span>
               )}
-            </form>
-
-            {/* Pending Tasks */}
-            <div className="clean-task-list">
-              {pending.map((task) => (
-                <div className="clean-task" key={task.id}>
-                  <button
-                    className="task-check"
-                    aria-label={`Complete ${task.title}`}
-                    onClick={() =>
-                      commit((v) => ({
-                        ...v,
-                        tasks: v.tasks.map((t) => (t.id === task.id ? { ...t, done: true } : t)),
-                      }))
-                    }
-                  />
-                  <button
-                    className="task-title"
-                    onClick={() => onFocus(task.title, task.category)}
-                    title="Focus on this task"
-                  >
-                    {task.title}
-                  </button>
-                  <span className={`task-category-badge cat-${task.category}`}>
-                    {task.category}
-                  </span>
-                  <button
-                    className="task-start"
-                    aria-label={`Focus on ${task.title}`}
-                    title="Focus on this task"
-                    onClick={() => onFocus(task.title, task.category)}
-                  >
-                    <ArrowUpRight size={17} />
-                  </button>
-                  <button
-                    className="remove-task"
-                    aria-label={`Remove ${task.title}`}
-                    onClick={async () => {
-                      if (
-                        await commit((v) => ({
-                          ...v,
-                          tasks: v.tasks.filter((t) => t.id !== task.id),
-                        }))
-                      )
-                        setRemoved(task);
-                    }}
-                  >
-                    <X size={15} />
-                  </button>
-                </div>
-              ))}
             </div>
+            <button className="icon-button" aria-label="Add task" onClick={onTask}>
+              <Plus size={20} />
+            </button>
+          </div>
 
-            {/* Empty state */}
-            {!filteredTasks.length && (
-              <div className="list-empty-box">
-                <Sprout />
-                <p>A little room to begin. Start with one small intention.</p>
-                <button className="outline small" onClick={onTask}>
-                  <Plus size={15} />
-                  Choose a task
-                </button>
-              </div>
+          {/* Category Filter Pills */}
+          <div className="task-filter-pills" role="tablist" aria-label="Task category filters">
+            {[
+              { id: 'all', label: 'All' },
+              { id: 'work', label: 'Work' },
+              { id: 'study', label: 'Study' },
+              { id: 'health', label: 'Health' },
+              { id: 'personal', label: 'Personal' },
+            ].map((f) => (
+              <button
+                key={f.id}
+                role="tab"
+                aria-selected={activeFilter === f.id}
+                className={`filter-pill ${activeFilter === f.id ? 'active' : ''}`}
+                onClick={() => setFilter(f.id)}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Inline Quick-Add Task Field */}
+          <form className="task-quick-add" onSubmit={handleQuickAdd}>
+            <input
+              type="text"
+              placeholder="+ Add a task to this day... (press Enter)"
+              value={quickTitle}
+              onChange={(e) => setQuickTitle(e.target.value)}
+              maxLength={160}
+            />
+            {quickTitle.trim() && (
+              <button type="submit" className="primary small quick-add-submit">
+                Add
+              </button>
             )}
+          </form>
 
-            {/* Completed tasks toggle */}
-            {done.length > 0 && (
-              <>
+          {/* Pending Tasks */}
+          <div className="clean-task-list">
+            {pending.map((task) => (
+              <div className="clean-task" key={task.id}>
                 <button
-                  className="completed-toggle"
-                  aria-expanded={showDone}
-                  onClick={() => setShowDone(!showDone)}
+                  className="task-check"
+                  aria-label={`Complete ${task.title}`}
+                  onClick={() =>
+                    commit((v) => ({
+                      ...v,
+                      tasks: v.tasks.map((t) => (t.id === task.id ? { ...t, done: true } : t)),
+                    }))
+                  }
+                />
+                <button
+                  className="task-title"
+                  onClick={() => onFocus(task.title, task.category)}
+                  title="Focus on this task"
                 >
-                  <CheckCheck size={16} />
-                  {done.length} done today
-                  <span>{showDone ? 'Hide' : 'View'}</span>
+                  {task.title}
                 </button>
-                {showDone &&
-                  done.map((task) => (
-                    <div className="clean-task completed" key={task.id}>
-                      <button
-                        className="task-check"
-                        aria-label={`Reopen ${task.title}`}
-                        onClick={() =>
-                          commit((v) => ({
-                            ...v,
-                            tasks: v.tasks.map((t) =>
-                              t.id === task.id ? { ...t, done: false } : t,
-                            ),
-                          }))
-                        }
-                      >
-                        <Check size={14} />
-                      </button>
-                      <span>{task.title}</span>
-                    </div>
-                  ))}
-              </>
-            )}
-
-            {removed && (
-              <div className="inline-undo" role="status">
-                Task removed.
+                <span className={`task-category-badge cat-${task.category}`}>
+                  {task.category}
+                </span>
                 <button
+                  className="task-start"
+                  aria-label={`Focus on ${task.title}`}
+                  title="Focus on this task"
+                  onClick={() => onFocus(task.title, task.category)}
+                >
+                  <ArrowUpRight size={17} />
+                </button>
+                <button
+                  className="remove-task"
+                  aria-label={`Remove ${task.title}`}
                   onClick={async () => {
                     if (
                       await commit((v) => ({
                         ...v,
-                        tasks: v.tasks.some((t) => t.id === removed.id)
-                          ? v.tasks
-                          : [...v.tasks, removed],
+                        tasks: v.tasks.filter((t) => t.id !== task.id),
                       }))
                     )
-                      setRemoved(null);
+                      setRemoved(task);
                   }}
                 >
-                  Undo
+                  <X size={15} />
                 </button>
               </div>
-            )}
+            ))}
+          </div>
 
-            {state.tasks.some((t) => t.date < today && !t.done) && (
-              <button
-                className="carry-forward"
-                onClick={() =>
-                  commit((v) => ({
-                    ...v,
-                    tasks: v.tasks.map((t) => (t.date < today && !t.done ? { ...t, date: today } : t)),
-                  }))
-                }
-              >
-                Bring unfinished tasks into today
-                <ArrowRight size={15} />
+          {/* Empty state */}
+          {!filteredTasks.length && (
+            <div className="list-empty-box">
+              <Sprout />
+              <p>A little room to begin. Start with one small intention.</p>
+              <button className="outline small" onClick={onTask}>
+                <Plus size={15} />
+                Choose a task
               </button>
-            )}
-
-            <div className="today-metrics">
-              <span>
-                <Timer size={16} />
-                <strong>{formatMinutes(stats.focusMinutes)}</strong>focused
-              </span>
-              <span>
-                <CheckCheck size={16} />
-                <strong>{done.length}</strong>finished
-              </span>
             </div>
-          </section>
+          )}
 
-          {/* Daily Rhythm Card ("Your day") */}
+          {/* Completed tasks toggle */}
+          {done.length > 0 && (
+            <>
+              <button
+                className="completed-toggle"
+                aria-expanded={showDone}
+                onClick={() => setShowDone(!showDone)}
+              >
+                <CheckCheck size={16} />
+                {done.length} done today
+                <span>{showDone ? 'Hide' : 'View'}</span>
+              </button>
+              {showDone &&
+                done.map((task) => (
+                  <div className="clean-task completed" key={task.id}>
+                    <button
+                      className="task-check"
+                      aria-label={`Reopen ${task.title}`}
+                      onClick={() =>
+                        commit((v) => ({
+                          ...v,
+                          tasks: v.tasks.map((t) =>
+                            t.id === task.id ? { ...t, done: false } : t,
+                          ),
+                        }))
+                      }
+                    >
+                      <Check size={14} />
+                    </button>
+                    <span>{task.title}</span>
+                  </div>
+                ))}
+            </>
+          )}
+
+          {removed && (
+            <div className="inline-undo" role="status">
+              Task removed.
+              <button
+                onClick={async () => {
+                  if (
+                    await commit((v) => ({
+                      ...v,
+                      tasks: v.tasks.some((t) => t.id === removed.id)
+                        ? v.tasks
+                        : [...v.tasks, removed],
+                    }))
+                  )
+                    setRemoved(null);
+                }}
+              >
+                Undo
+              </button>
+            </div>
+          )}
+
+          {state.tasks.some((t) => t.date < today && !t.done) && (
+            <button
+              className="carry-forward"
+              onClick={() =>
+                commit((v) => ({
+                  ...v,
+                  tasks: v.tasks.map((t) => (t.date < today && !t.done ? { ...t, date: today } : t)),
+                }))
+              }
+            >
+              Bring unfinished tasks into today
+              <ArrowRight size={15} />
+            </button>
+          )}
+
+          <div className="today-metrics">
+            <span>
+              <Timer size={16} />
+              <strong>{formatMinutes(stats.focusMinutes)}</strong>focused
+            </span>
+            <span>
+              <CheckCheck size={16} />
+              <strong>{done.length}</strong>finished
+            </span>
+          </div>
+        </section>
+
+        {/* Column 2: Focus Widget Card */}
+        <section className="panel focus-widget-card">
+          <div className="focus-widget-top">
+            <span className="eyebrow">
+              <Timer size={13} />
+              FOCUS TIMER
+            </span>
+            <span className="focus-widget-title">
+              {active ? active.title : 'Make room for one thing'}
+            </span>
+          </div>
+          <div className="focus-widget-dial">
+            <svg viewBox="0 0 120 120" className="focus-widget-svg">
+              <circle cx="60" cy="60" r="52" className="widget-ring-track" />
+              <circle
+                cx="60"
+                cy="60"
+                r="52"
+                className="widget-ring-progress"
+                strokeDasharray={326}
+                strokeDashoffset={
+                  active
+                    ? 326 * Math.min(1, timerElapsed(active, now) / (active.durationMinutes * 60000))
+                    : 0
+                }
+              />
+            </svg>
+            <div className="widget-dial-center">
+              <span className="widget-digits" role="timer">
+                {formatClock(remaining || state.settings.focusMinutes * 60000)}
+              </span>
+              <small className="widget-status">
+                {active ? (active.pausedAt ? 'paused' : 'in focus') : `${state.settings.focusMinutes}m`}
+              </small>
+            </div>
+          </div>
+          <div className="focus-widget-chip-row">
+            <span className="focus-widget-chip">
+              <Leaf size={13} />
+              {active
+                ? `${active.durationMinutes} min session`
+                : `${state.settings.focusMinutes} min intention`}
+            </span>
+          </div>
+          <div className="focus-widget-actions">
+            <button
+              className="primary small full"
+              onClick={() => (active ? onFocus() : onFocus(next?.title, next?.category))}
+            >
+              {active ? (
+                <>
+                  <Play size={14} />
+                  {active.pausedAt ? 'Resume timer' : 'Open focus'}
+                </>
+              ) : (
+                <>
+                  <Play size={14} fill="currentColor" />
+                  Start focus
+                </>
+              )}
+            </button>
+          </div>
+        </section>
+
+        {/* Column 3: Rhythm Stack (Everyday Rhythm + Gentle Compass Quote) */}
+        <div className="today-rhythm-stack">
+          {/* Daily Rhythm Card */}
           <section className="panel today-rhythm-panel">
             <div className="section-heading">
               <div>
@@ -857,7 +976,7 @@ export function TodayPage({
               </button>
             </div>
             <div className="routine-timeline-preview">
-              {sortedRoutine.slice(0, 4).map((b) => (
+              {sortedRoutine.slice(0, 3).map((b) => (
                 <div
                   key={b.id}
                   className={`routine-row-preview ${currentBlock?.id === b.id ? 'current' : ''}`}
@@ -886,141 +1005,31 @@ export function TodayPage({
               )}
             </div>
           </section>
-        </div>
 
-        {/* Side / Utility Column */}
-        <aside className="today-side-col">
-          {/* Mini Calendar Card */}
-          <section className="panel mini-calendar-card">
-            <div className="calendar-card-header">
-              <h3>{calendarData.monthName}</h3>
-              <div className="calendar-nav-buttons">
-                <button
-                  type="button"
-                  aria-label="Previous month"
-                  className="icon-button small"
-                  onClick={() => setCalMonthOffset((v) => v - 1)}
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Next month"
-                  className="icon-button small"
-                  onClick={() => setCalMonthOffset((v) => v + 1)}
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-            </div>
-            <div className="calendar-weekdays-row">
-              {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((w) => (
-                <span key={w} className="weekday-label">
-                  {w}
-                </span>
-              ))}
-            </div>
-            <div className="calendar-grid">
-              {calendarData.days.map((item, idx) => {
-                if (!item) return <span key={`blank-${idx}`} className="cal-cell empty-cell" />;
-                const isToday = item.dateStr === today;
-                const isSelected = item.dateStr === selectedDate;
-                const hasTasks = scheduledDates.has(item.dateStr);
-                return (
-                  <button
-                    key={item.dateStr}
-                    type="button"
-                    className={`cal-cell ${isToday ? 'is-today' : ''} ${
-                      isSelected ? 'is-selected' : ''
-                    } ${hasTasks ? 'has-tasks' : ''}`}
-                    onClick={() => setSelectedDate(item.dateStr)}
-                  >
-                    <span>{item.day}</span>
-                    {hasTasks && <i className="cal-dot" />}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* Focus Timer Widget Card */}
-          <section className="panel focus-widget-card">
-            <div className="focus-widget-top">
-              <span className="eyebrow">
-                <Timer size={13} />
-                FOCUS TIMER
-              </span>
-              <span className="focus-widget-title">
-                {active ? active.title : 'Make room for one thing'}
-              </span>
-            </div>
-            <div className="focus-widget-dial">
-              <svg viewBox="0 0 120 120" className="focus-widget-svg">
-                <circle cx="60" cy="60" r="52" className="widget-ring-track" />
-                <circle
-                  cx="60"
-                  cy="60"
-                  r="52"
-                  className="widget-ring-progress"
-                  strokeDasharray={326}
-                  strokeDashoffset={
-                    active
-                      ? 326 * Math.min(1, timerElapsed(active, now) / (active.durationMinutes * 60000))
-                      : 0
-                  }
-                />
-              </svg>
-              <div className="widget-dial-center">
-                <span className="widget-digits" role="timer">
-                  {formatClock(remaining || state.settings.focusMinutes * 60000)}
-                </span>
-                <small className="widget-status">
-                  {active ? (active.pausedAt ? 'paused' : 'in focus') : `${state.settings.focusMinutes}m`}
-                </small>
-              </div>
-            </div>
-            <div className="focus-widget-actions">
-              <button
-                className="primary small full"
-                onClick={() => (active ? onFocus() : onFocus(next?.title, next?.category))}
-              >
-                {active ? (
-                  <>
-                    <Play size={14} />
-                    {active.pausedAt ? 'Resume timer' : 'Open focus'}
-                  </>
-                ) : (
-                  <>
-                    <Play size={14} fill="currentColor" />
-                    Start focus
-                  </>
-                )}
-              </button>
-            </div>
-          </section>
-
-          {/* Warm Paper Reminder Card with Botanical Branch */}
+          {/* Warm Paper Reminder Card */}
           <section className="reminder-paper-card">
             <div className="reminder-copy">
               <span className="eyebrow">A GENTLE COMPASS</span>
               <blockquote>
                 “Progress looks different every day. The plan is a compass, not a deadline.”
               </blockquote>
-              <button className="text-button" onClick={onReview}>
-                <Moon size={15} />
-                Reflect on today
-                <ChevronRight size={15} />
-              </button>
-            </div>
-            <div className="reminder-art">
-              <img
-                src="/assets/plants/botanical-branch.png"
-                alt="Botanical branch ornament"
-                className="plant-branch-art"
-              />
+              <div className="reminder-bottom-row">
+                <button className="text-button" onClick={onReview}>
+                  <Moon size={15} />
+                  Reflect on today
+                  <ChevronRight size={15} />
+                </button>
+                <div className="reminder-art">
+                  <img
+                    src="/assets/plants/botanical-branch.png"
+                    alt="Botanical branch ornament"
+                    className="plant-branch-art"
+                  />
+                </div>
+              </div>
             </div>
           </section>
-        </aside>
+        </div>
       </div>
 
       {/* Daily Check-ins Accordion */}

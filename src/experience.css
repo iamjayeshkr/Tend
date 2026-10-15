@@ -162,17 +162,60 @@ html,body{background:var(--paper);color:var(--ink)}body{background-image:radial-
   padding: 0 16px;
   border-radius: 10px;
 }
-.today-dashboard-grid {
+/* Today Page Grids */
+.today-hero-grid {
   display: grid;
-  grid-template-columns: 1.42fr 1fr;
+  grid-template-columns: 1.58fr 1fr;
   gap: 24px;
-  margin-top: 28px;
+  align-items: stretch;
 }
-.today-main-col, .today-side-col {
+.today-hero-grid .next-step-card {
+  height: 100%;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  border-radius: 20px;
+}
+.today-hero-grid .mini-calendar-card {
+  height: 100%;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
+  border-radius: 20px;
+}
+
+.today-cards-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 0.95fr 1fr;
   gap: 24px;
+  margin-top: 24px;
+  align-items: stretch;
+}
+.today-tasks-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px;
+}
+.today-tasks-card .clean-task-list {
+  flex: 1;
+}
+.today-rhythm-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
   min-width: 0;
+}
+.today-rhythm-panel {
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.today-rhythm-panel .routine-timeline-preview {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 .task-filter-pills {
   display: flex;
@@ -284,7 +327,7 @@ html,body{background:var(--paper);color:var(--ink)}body{background-image:radial-
 
 /* Mini Calendar */
 .mini-calendar-card {
-  padding: 20px;
+  padding: 22px 24px;
 }
 .calendar-card-header {
   display: flex;
@@ -323,7 +366,7 @@ html,body{background:var(--paper);color:var(--ink)}body{background-image:radial-
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 34px;
+  height: 32px;
   border-radius: 8px;
   font-size: 12px;
   color: var(--ink);
@@ -343,7 +386,7 @@ html,body{background:var(--paper);color:var(--ink)}body{background-image:radial-
 }
 .cal-dot {
   position: absolute;
-  bottom: 3px;
+  bottom: 2px;
   width: 4px;
   height: 4px;
   border-radius: 50%;
@@ -355,40 +398,48 @@ html,body{background:var(--paper);color:var(--ink)}body{background-image:radial-
 
 /* Focus Widget Card */
 .focus-widget-card {
-  padding: 20px;
+  padding: 24px 22px;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   text-align: center;
 }
 .focus-widget-top {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   align-items: center;
-  margin-bottom: 12px;
 }
 .focus-widget-top .eyebrow {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
 }
 .focus-widget-title {
-  font: 500 16px Fraunces;
+  font: 500 17px/1.3 Fraunces;
   color: var(--ink);
-  max-width: 220px;
+  max-width: 240px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .focus-widget-dial {
   position: relative;
-  width: 120px;
-  height: 120px;
-  margin: 12px auto;
+  width: 140px;
+  height: 140px;
+  margin: 16px auto;
   display: grid;
   place-items: center;
+  flex-shrink: 0;
 }
 .focus-widget-svg {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   transform: rotate(-90deg);
 }
 .widget-ring-track {
@@ -401,49 +452,103 @@ html,body{background:var(--paper);color:var(--ink)}body{background-image:radial-
   stroke: var(--green);
   stroke-width: 6;
   stroke-linecap: round;
-  transition: stroke-dashoffset 0.3s;
+  transition: stroke-dashoffset 0.3s ease;
 }
 .widget-dial-center {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  z-index: 1;
 }
 .widget-digits {
-  font: 500 22px Fraunces;
+  font: 600 24px/1.1 Fraunces;
   letter-spacing: -0.02em;
+  color: var(--ink);
 }
 .widget-status {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
+  margin-top: 3px;
+  font-weight: 500;
+}
+.focus-widget-chip-row {
+  display: flex;
+  justify-content: center;
+  margin: 6px 0;
+}
+.focus-widget-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
 }
 .focus-widget-actions {
   margin-top: 14px;
+}
+.focus-widget-actions .primary {
+  width: 100%;
+  justify-content: center;
 }
 
 /* Reminder Card */
 .reminder-paper-card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 18px;
-  padding: 20px;
-  display: grid;
-  grid-template-columns: 1.4fr 1fr;
-  align-items: center;
-  overflow: hidden;
+  border-radius: 20px;
+  padding: 20px 22px;
   position: relative;
+  overflow: hidden;
+}
+.reminder-copy {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.reminder-copy .eyebrow {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
 }
 .reminder-copy blockquote {
-  font: 400 16px/1.45 Fraunces;
-  letter-spacing: -0.02em;
+  font: 400 15px/1.45 Fraunces;
+  letter-spacing: -0.015em;
   color: var(--ink);
-  margin: 8px 0 14px;
+  margin: 8px 0 16px;
   padding: 0;
   border: 0;
 }
-.reminder-art {
+.reminder-bottom-row {
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  gap: 12px;
+}
+.reminder-bottom-row .text-button {
+  font-size: 12px;
+  color: var(--green);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  font-weight: 500;
+}
+.reminder-bottom-row .reminder-art {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.reminder-bottom-row .plant-branch-art {
+  max-width: 90px;
+  max-height: 50px;
+  object-fit: contain;
+  opacity: 0.85;
 }
 
 /* Focus Page 2-column Dashboard */
@@ -737,9 +842,29 @@ html,body{background:var(--paper);color:var(--ink)}body{background-image:radial-
 }
 
 /* Responsive adjustments */
-@media (max-width: 900px) {
-  .today-dashboard-grid, .focus-dashboard-layout {
+@media (max-width: 1150px) {
+  .today-hero-grid {
     grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .today-cards-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .today-tasks-card {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 900px) {
+  .today-hero-grid,
+  .today-cards-grid,
+  .focus-dashboard-layout {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .today-tasks-card {
+    grid-column: span 1;
   }
   .space-hero-banner {
     grid-template-columns: 1fr;
@@ -754,48 +879,6 @@ html,body{background:var(--paper);color:var(--ink)}body{background-image:radial-
   }
   .space-sanctuary-grid {
     grid-template-columns: 1fr;
-  }
-}
-
-/* Wide Desktop Full-Page Layout Enhancements */
-@media (min-width: 1250px) {
-  .focus-dashboard-layout {
-    grid-template-columns: 1.25fr 1fr;
-    gap: 32px;
-  }
-  .focus-side-column {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-  }
-  .focus-side-column .focus-support-card:first-child,
-  .focus-side-column .focus-shield-card {
-    grid-column: span 1;
-  }
-  .focus-side-column .focus-support-card:nth-child(2),
-  .focus-side-column .focus-support-card:nth-child(3) {
-    grid-column: span 2;
-  }
-}
-
-@media (min-width: 1350px) {
-  .today-dashboard-grid {
-    grid-template-columns: 1.35fr 1fr;
-    gap: 32px;
-  }
-  .today-side-col {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-  }
-  .today-side-col .mini-calendar-card {
-    grid-column: span 1;
-  }
-  .today-side-col .focus-widget-card {
-    grid-column: span 1;
-  }
-  .today-side-col .reminder-paper-card {
-    grid-column: span 2;
   }
 }
 
