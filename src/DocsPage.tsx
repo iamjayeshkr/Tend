@@ -197,10 +197,10 @@ export function DocsPage({
                   type="button"
                   className="outline docs-signout-btn"
                   onClick={onSignOut ? onSignOut : identity.signOut}
-                  title="Sign out of Tend"
+                  title="Log out of Tend"
                 >
                   <LogOut size={15} />
-                  <span>Sign out</span>
+                  <span>Log out</span>
                 </button>
                 <button type="button" className="primary docs-launch-btn" onClick={onLaunchApp}>
                   <span>Open Dashboard</span>
@@ -218,8 +218,8 @@ export function DocsPage({
                     Sign in
                   </button>
                 )}
-                <button type="button" className="primary docs-launch-btn" onClick={onLaunchApp}>
-                  <span>Open Dashboard</span>
+                <button type="button" className="primary docs-launch-btn" onClick={() => (onOpenAuth ? onOpenAuth('signup') : onLaunchApp())}>
+                  <span>Get Started</span>
                   <ArrowRight size={16} />
                 </button>
               </>

@@ -238,12 +238,23 @@ export default function App({ environment }: { environment: PublicEnvironment })
   const [currentView, setCurrentView] = useState<"app" | "landing" | "docs" | "auth">(() => {
     if (typeof window !== "undefined") {
       const hash = window.location.hash.toLowerCase();
-      if (hash.startsWith("#app") || hash.startsWith("#today") || hash.startsWith("#focus") || hash.startsWith("#notebook") || hash.startsWith("#you")) {
-        return "app";
-      }
       if (hash.startsWith("#docs")) return "docs";
       if (hash.startsWith("#auth") || hash.startsWith("#signin") || hash.startsWith("#signup")) return "auth";
       if (hash.startsWith("#landing")) return "landing";
+      if (
+        hash.startsWith("#app") ||
+        hash.startsWith("#today") ||
+        hash.startsWith("#focus") ||
+        hash.startsWith("#notebook") ||
+        hash.startsWith("#you") ||
+        hash.startsWith("#reflect") ||
+        hash.startsWith("#rhythm")
+      ) {
+        if (environment.cloud && identity.status !== "signedIn") {
+          return "auth";
+        }
+        return "app";
+      }
     }
     return "landing";
   });
@@ -257,7 +268,21 @@ export default function App({ environment }: { environment: PublicEnvironment })
   useEffect(() => {
     const syncHash = () => {
       const hash = window.location.hash.toLowerCase();
-      if (hash.startsWith("#app") || hash.startsWith("#today") || hash.startsWith("#focus") || hash.startsWith("#notebook") || hash.startsWith("#you")) {
+      if (
+        hash.startsWith("#app") ||
+        hash.startsWith("#today") ||
+        hash.startsWith("#focus") ||
+        hash.startsWith("#notebook") ||
+        hash.startsWith("#you") ||
+        hash.startsWith("#reflect") ||
+        hash.startsWith("#rhythm")
+      ) {
+        if (environment.cloud && identity.status !== "signedIn") {
+          setAuthInitialMode("signin");
+          setCurrentView("auth");
+          window.location.hash = "#auth";
+          return;
+        }
         setCurrentView("app");
       } else if (hash.startsWith("#docs")) {
         setCurrentView("docs");
@@ -271,11 +296,33 @@ export default function App({ environment }: { environment: PublicEnvironment })
         setCurrentView("landing");
       }
     };
+    syncHash();
     window.addEventListener("hashchange", syncHash);
     return () => window.removeEventListener("hashchange", syncHash);
-  }, []);
+  }, [environment.cloud, identity.status]);
+
+  // Proactive auth guard: If cloud is configured and user is not signed in, never allow "app" view
+  useEffect(() => {
+    if (!environment.cloud) return;
+    if (identity.status === "loading") return;
+    if (currentView === "app" && identity.status !== "signedIn") {
+      setAuthInitialMode("signin");
+      setCurrentView("auth");
+      if (typeof window !== "undefined" && window.location.hash !== "#auth" && window.location.hash !== "#signup") {
+        window.location.hash = "#auth";
+      }
+    }
+  }, [environment.cloud, identity.status, currentView]);
 
   const navigateToView = (view: "app" | "landing" | "docs" | "auth", hash?: string) => {
+    if (view === "app" && environment.cloud && identity.status !== "signedIn") {
+      setAuthInitialMode("signin");
+      setCurrentView("auth");
+      if (typeof window !== "undefined") {
+        window.location.hash = "#auth";
+      }
+      return;
+    }
     setCurrentView(view);
     if (typeof window !== "undefined") {
       if (hash) {
@@ -776,15 +823,23 @@ export default function App({ environment }: { environment: PublicEnvironment })
   }, [modal, page]);
 
   const finishAccountSignOut = async () => {
-    if (identity.status !== "signedIn") return;
     syncEngine.current?.stop();
-    await identity.signOut();
+    if (identity.status === "signedIn") {
+      await identity.signOut();
+    }
     navigateToView("landing", "#landing");
   };
   const requestAccountSignOut = async () => {
-    if (identity.status !== "signedIn") return;
+    if (identity.status !== "signedIn") {
+      await finishAccountSignOut();
+      navigateToView("auth", "#auth");
+      return;
+    }
     const repository = accountRepository.current;
-    if (!repository) return;
+    if (!repository) {
+      await finishAccountSignOut();
+      return;
+    }
     const preparation = await new WorkspaceManager(repository).prepareSignOut(identity.userId);
     if (preparation.status === "requiresSyncOrExport") {
       setModal("signout");
@@ -796,7 +851,14 @@ export default function App({ environment }: { environment: PublicEnvironment })
     return (
       <LandingPage
         hasOnboarded={Boolean(s && s.onboarded)}
-        onLaunchApp={() => navigateToView("app", "#app")}
+        onLaunchApp={() => {
+          if (environment.cloud && identity.status !== "signedIn") {
+            setAuthInitialMode("signin");
+            navigateToView("auth", "#auth");
+          } else {
+            navigateToView("app", "#app");
+          }
+        }}
         onOpenDocs={() => navigateToView("docs", "#docs")}
         onOpenAuth={(mode) => {
           setAuthInitialMode(mode ?? "signin");
@@ -812,7 +874,14 @@ export default function App({ environment }: { environment: PublicEnvironment })
     return (
       <DocsPage
         onBackToLanding={() => navigateToView("landing", "#landing")}
-        onLaunchApp={() => navigateToView("app", "#app")}
+        onLaunchApp={() => {
+          if (environment.cloud && identity.status !== "signedIn") {
+            setAuthInitialMode("signin");
+            navigateToView("auth", "#auth");
+          } else {
+            navigateToView("app", "#app");
+          }
+        }}
         onOpenAuth={(mode) => {
           setAuthInitialMode(mode ?? "signin");
           navigateToView("auth", mode === "signup" ? "#signup" : "#auth");
@@ -828,8 +897,44 @@ export default function App({ environment }: { environment: PublicEnvironment })
         initialMode={authInitialMode}
         clerkPublishableKey={environment.cloud?.clerkPublishableKey}
         hasLocalGuestData={Boolean(s && (s.tasks.length > 0 || s.routine.length > 0 || s.activities.length > 0))}
-        onBack={() => navigateToView(s ? "app" : "landing", s ? "" : "#landing")}
-        onContinueAsGuest={() => navigateToView("app")}
+        onBack={() => {
+          if (identity.status === "signedIn") {
+            navigateToView("app", "#app");
+          } else {
+            navigateToView("landing", "#landing");
+          }
+        }}
+        onContinueAsGuest={() => {
+          if (!environment.cloud) {
+            navigateToView("app", "#app");
+          }
+        }}
+      />
+    );
+  }
+
+  // Hard render guard: Never render dashboard if unauthenticated when cloud is enabled
+  if (currentView === "app" && environment.cloud && identity.status !== "signedIn") {
+    if (identity.status === "loading") {
+      return (
+        <div className="load-screen">
+          <Sprout />
+          <h1>Checking your account…</h1>
+          <p>Verifying secure session…</p>
+        </div>
+      );
+    }
+    return (
+      <AuthPage
+        initialMode={authInitialMode}
+        clerkPublishableKey={environment.cloud?.clerkPublishableKey}
+        hasLocalGuestData={Boolean(s && (s.tasks.length > 0 || s.routine.length > 0 || s.activities.length > 0))}
+        onBack={() => navigateToView("landing", "#landing")}
+        onContinueAsGuest={() => {
+          if (!environment.cloud) {
+            navigateToView("app", "#app");
+          }
+        }}
       />
     );
   }
@@ -1340,16 +1445,15 @@ export default function App({ environment }: { environment: PublicEnvironment })
           <BookOpen size={18} />
           Docs
         </button>
-        {identity.status === "signedIn" && (
-          <button
-            className="settings-nav signout-nav"
-            onClick={requestAccountSignOut}
-            title="Sign out of your Tend account"
-          >
-            <LogOut size={18} />
-            Sign out
-          </button>
-        )}
+        <button
+          className="settings-nav signout-nav"
+          onClick={requestAccountSignOut}
+          title="Log out of your Tend account"
+          aria-label="Log out"
+        >
+          <LogOut size={18} />
+          Log out
+        </button>
         <div className="local-label">
           <span />
           {identity.status === "signedIn"
@@ -1400,6 +1504,15 @@ export default function App({ environment }: { environment: PublicEnvironment })
                 day: "numeric",
               })}
             </span>
+            <button
+              className="topbar-nav-button topbar-logout-btn"
+              onClick={requestAccountSignOut}
+              title="Log out of your Tend account"
+              aria-label="Log out"
+            >
+              <LogOut size={14} />
+              <span>Log out</span>
+            </button>
             <button
               className="avatar"
               aria-label="Open settings"
@@ -3635,6 +3748,7 @@ export default function App({ environment }: { environment: PublicEnvironment })
         onOpenSettings={() => setModal("settings")}
         onOpenShortcutsGuide={() => setModal("shortcuts")}
         onOpenAuth={() => navigateToView("auth", "#auth")}
+        onSignOut={requestAccountSignOut}
       />
       <ShortcutsModal
         isOpen={modal === "shortcuts"}

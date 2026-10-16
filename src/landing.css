@@ -3464,6 +3464,29 @@ html {
   gap: 8px;
 }
 
+/* Hide Clerk "Secured by Clerk" and "Development mode" badge */
+.clerk-mount-wrapper .cl-footerItem,
+.clerk-mount-wrapper .cl-footerPages,
+.clerk-mount-wrapper .cl-internal-r93pb5,
+.clerk-mount-wrapper .cl-internal-95w9vp,
+.clerk-mount-wrapper .cl-internal-y44tp9,
+.clerk-mount-wrapper .cl-internal-7or2pm,
+.clerk-mount-wrapper .cl-footer > *:not(.cl-footerAction),
+.clerk-mount-wrapper [class*="footerItem"],
+.clerk-hide-footer-item,
+.cl-footerItem,
+.cl-devModeTag,
+.cl-badge {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+}
+
 .auth-divider {
   display: flex;
   align-items: center;
@@ -3858,6 +3881,7 @@ html {
   font-weight: 500;
   color: var(--ink, #1F3C2C);
   cursor: pointer;
+  white-space: nowrap;
   transition: all 0.15s ease;
 }
 

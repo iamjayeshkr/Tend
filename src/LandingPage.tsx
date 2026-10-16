@@ -298,10 +298,10 @@ export function LandingPage({
                   className="outline nav-signout-btn"
                   onClick={handleSignOut}
                   disabled={signingOut}
-                  title="Sign out of your Tend account"
+                  title="Log out of your Tend account"
                 >
                   <LogOut size={15} />
-                  <span>{signingOut ? 'Signing out…' : 'Sign out'}</span>
+                  <span>{signingOut ? 'Logging out…' : 'Log out'}</span>
                 </button>
                 <button type="button" className="primary nav-launch-btn" onClick={onLaunchApp}>
                   <span>Open Dashboard</span>
@@ -316,8 +316,8 @@ export function LandingPage({
                 <button type="button" className="outline nav-signup-btn" onClick={() => onOpenAuth('signup')}>
                   Sign up
                 </button>
-                <button type="button" className="primary nav-launch-btn" onClick={onLaunchApp}>
-                  <span>Open Dashboard</span>
+                <button type="button" className="primary nav-launch-btn" onClick={() => onOpenAuth('signup')}>
+                  <span>Get Started</span>
                   <ArrowRight size={16} />
                 </button>
               </>

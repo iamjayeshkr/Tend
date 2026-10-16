@@ -182,7 +182,7 @@ function SignedInAccountPanel({
             </div>
             <button className="outline account-signout-btn" onClick={handleSignOut} disabled={signingOut}>
               <LogOut size={16} />
-              {signingOut ? 'Signing out…' : 'Sign out'}
+              {signingOut ? 'Logging out…' : 'Log out'}
             </button>
           </div>
         </section>

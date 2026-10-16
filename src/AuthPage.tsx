@@ -97,6 +97,9 @@ export function AuthPage({
                     elements: {
                       card: 'clerk-card-override',
                       formButtonPrimary: 'primary clerk-btn-override',
+                      footerItem: 'clerk-hide-footer-item',
+                      footerPages: 'clerk-hide-footer-item',
+                      devModeTag: 'clerk-hide-footer-item',
                     },
                   }}
                 />
@@ -109,6 +112,9 @@ export function AuthPage({
                     elements: {
                       card: 'clerk-card-override',
                       formButtonPrimary: 'primary clerk-btn-override',
+                      footerItem: 'clerk-hide-footer-item',
+                      footerPages: 'clerk-hide-footer-item',
+                      devModeTag: 'clerk-hide-footer-item',
                     },
                   }}
                 />
@@ -124,21 +130,25 @@ export function AuthPage({
             </div>
           )}
 
-          {/* Distinct Offline Guest Mode Alternative */}
-          <div className="auth-divider">
-            <span>OR STAY OFFLINE</span>
-          </div>
+          {/* Distinct Offline Guest Mode Alternative (Only when cloud is not configured) */}
+          {!clerkPublishableKey && (
+            <>
+              <div className="auth-divider">
+                <span>OR STAY OFFLINE</span>
+              </div>
 
-          <div className="guest-alternative-box">
-            <div className="guest-copy">
-              <strong>Prefer zero accounts?</strong>
-              <p>Tend works 100% offline. No email or cloud sync required.</p>
-            </div>
-            <button className="outline guest-continue-btn" onClick={onContinueAsGuest}>
-              <Leaf size={16} />
-              <span>Continue as Guest</span>
-            </button>
-          </div>
+              <div className="guest-alternative-box">
+                <div className="guest-copy">
+                  <strong>Prefer zero accounts?</strong>
+                  <p>Tend works 100% offline. No email or cloud sync required.</p>
+                </div>
+                <button className="outline guest-continue-btn" onClick={onContinueAsGuest}>
+                  <Leaf size={16} />
+                  <span>Continue as Guest</span>
+                </button>
+              </div>
+            </>
+          )}
 
           {/* Privacy Guarantee Footer */}
           <footer className="auth-card-footer">

@@ -16,6 +16,7 @@ import {
   Clock,
   Briefcase,
   Shield,
+  LogOut,
   X,
 } from 'lucide-react';
 import { Sprout } from '../Doodles';
@@ -46,6 +47,7 @@ interface CommandPaletteProps {
   onOpenSettings: () => void;
   onOpenShortcutsGuide: () => void;
   onOpenAuth?: () => void;
+  onSignOut?: () => void;
 }
 
 export function CommandPalette({
@@ -63,6 +65,7 @@ export function CommandPalette({
   onOpenSettings,
   onOpenShortcutsGuide,
   onOpenAuth,
+  onSignOut,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -258,7 +261,19 @@ export function CommandPalette({
         onClose();
       },
     }] : []),
-  ], [modSymbol, onNewNote, onNewTask, timerActive, timerPaused, onToggleTimer, onStartTimer, onOpenReflection, onOpenActivity, onGoPage, onOpenShortcutsGuide, onOpenSettings, onOpenAuth, onClose]);
+    ...(onSignOut ? [{
+      id: 'log-out',
+      title: 'Log out of Tend account',
+      subtitle: 'Safely end your session and lock cloud sync',
+      category: 'System' as const,
+      icon: LogOut,
+      keywords: ['logout', 'signout', 'exit', 'leave', 'disconnect'],
+      onExecute: () => {
+        onSignOut();
+        onClose();
+      },
+    }] : []),
+  ], [modSymbol, onNewNote, onNewTask, timerActive, timerPaused, onToggleTimer, onStartTimer, onOpenReflection, onOpenActivity, onGoPage, onOpenShortcutsGuide, onOpenSettings, onOpenAuth, onSignOut, onClose]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
