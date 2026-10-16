@@ -1,12 +1,19 @@
-const { app, BrowserWindow, shell, Menu, protocol, net } = require('electron');
+const { app, BrowserWindow, shell, Menu, protocol, net, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
+const { createClerkBridge } = require('@clerk/electron');
+const { storage } = require('@clerk/electron/storage');
+
+const RENDERER_SCHEME = 'tend';
+const RENDERER_HOST = 'renderer';
+const PACKAGED_RENDERER_ORIGIN = `${RENDERER_SCHEME}://${RENDERER_HOST}`;
+const DIST_DIRECTORY = path.resolve(__dirname, '../dist');
 
 // Register custom scheme as privileged so it has full browser-standard capabilities
 protocol.registerSchemesAsPrivileged([
   {
-    scheme: 'app',
+    scheme: RENDERER_SCHEME,
     privileges: {
       standard: true,
       secure: true,
@@ -17,9 +24,96 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 
+// Clerk owns the desktop single-instance lock so OAuth/SSO callbacks can be
+// forwarded safely to the first process. Session data is encrypted by the SDK.
+const clerk = createClerkBridge({
+  storage: storage(),
+  renderer: { scheme: RENDERER_SCHEME, host: RENDERER_HOST },
+  userAgent: `Tend/${app.getVersion()}`,
+});
+
 let mainWindow = null;
 
 const isDev = !app.isPackaged && (process.env.NODE_ENV === 'development' || process.argv.includes('--dev'));
+const devServerUrl = isDev ? process.env.VITE_DEV_SERVER_URL : undefined;
+
+function originOf(url) {
+  try {
+    const parsedUrl = new URL(url);
+    return `${parsedUrl.protocol}//${parsedUrl.host}`;
+  } catch {
+    return '';
+  }
+}
+
+function desktopBuildConfiguration() {
+  const empty = { clerkFrontendApiHost: '', supabaseOrigin: '' };
+  try {
+    const parsed = JSON.parse(fs.readFileSync(path.join(DIST_DIRECTORY, 'desktop-config.json'), 'utf8'));
+    const clerkFrontendApiHost = typeof parsed.clerkFrontendApiHost === 'string'
+      && /^[a-z0-9.-]+(?::\d+)?$/i.test(parsed.clerkFrontendApiHost)
+      ? parsed.clerkFrontendApiHost
+      : '';
+    const supabaseOrigin = typeof parsed.supabaseOrigin === 'string'
+      && /^https:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(parsed.supabaseOrigin)
+      ? parsed.supabaseOrigin
+      : '';
+    return { clerkFrontendApiHost, supabaseOrigin };
+  } catch {
+    return empty;
+  }
+}
+
+function applyContentSecurityPolicy() {
+  const { clerkFrontendApiHost, supabaseOrigin } = desktopBuildConfiguration();
+  const clerkOrigin = clerkFrontendApiHost ? `https://${clerkFrontendApiHost}` : '';
+  const scriptSources = [
+    "'self'",
+    "'unsafe-inline'",
+    clerkOrigin,
+    'https://challenges.cloudflare.com',
+    'https://*.protect.clerk.com',
+  ].filter(Boolean);
+  const connectSources = [
+    "'self'",
+    clerkOrigin,
+    supabaseOrigin,
+    'https://*.protect.clerk.com:*',
+    'https://clerk-telemetry.com',
+    'https://*.clerk-telemetry.com',
+  ].filter(Boolean);
+  const policy = [
+    "default-src 'self'",
+    `script-src ${scriptSources.join(' ')}`,
+    `connect-src ${connectSources.join(' ')}`,
+    "img-src 'self' https://img.clerk.com data: blob:",
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self' data:",
+    "worker-src 'self' blob:",
+    "media-src 'self' blob:",
+    "frame-src 'self' https://challenges.cloudflare.com https://*.protect.clerk.com",
+    "form-action 'self'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "frame-ancestors 'none'",
+  ].join('; ');
+
+  session.defaultSession.webRequest.onHeadersReceived(
+    { urls: [`${PACKAGED_RENDERER_ORIGIN}/*`] },
+    (details, callback) => {
+      if (details.resourceType !== 'mainFrame') {
+        callback({ responseHeaders: details.responseHeaders });
+        return;
+      }
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [policy],
+        },
+      });
+    },
+  );
+}
 
 function createMenu() {
   const isMac = process.platform === 'darwin';
@@ -94,7 +188,7 @@ function createMenu() {
           label: 'Tend Privacy & Terms',
           click: async () => {
             if (mainWindow) {
-              mainWindow.loadURL('app://bundle/privacy.html');
+              mainWindow.loadURL(`${PACKAGED_RENDERER_ORIGIN}/privacy.html`);
             }
           },
         },
@@ -134,27 +228,40 @@ function createWindow() {
     mainWindow.show();
   });
 
-  // Handle external link navigation safely
+  const allowedOrigins = new Set(
+    [devServerUrl, PACKAGED_RENDERER_ORIGIN]
+      .filter(Boolean)
+      .map(originOf),
+  );
+
+  // Never give an external page access to the privileged preload or Clerk's
+  // token bridge. Browser links are opened outside Tend.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http:') || url.startsWith('https:') || url.startsWith('mailto:')) {
-      shell.openExternal(url);
-      return { action: 'deny' };
+      void shell.openExternal(url);
     }
-    return { action: 'allow' };
+    return { action: 'deny' };
   });
 
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    const isAppOrigin = url.startsWith('app://') || url.startsWith('file://') || url.startsWith('http://localhost');
-    if (!isAppOrigin && (url.startsWith('http:') || url.startsWith('https:'))) {
+    if (!allowedOrigins.has(originOf(url))) {
       event.preventDefault();
-      shell.openExternal(url);
+      if (url.startsWith('http:') || url.startsWith('https:') || url.startsWith('mailto:')) {
+        void shell.openExternal(url);
+      }
     }
   });
 
-  if (isDev && process.env.VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+  mainWindow.webContents.on('will-redirect', (event, url) => {
+    if (event.isMainFrame && !allowedOrigins.has(originOf(url))) {
+      event.preventDefault();
+    }
+  });
+
+  if (devServerUrl) {
+    mainWindow.loadURL(devServerUrl);
   } else {
-    mainWindow.loadURL('app://bundle/index.html');
+    mainWindow.loadURL(`${PACKAGED_RENDERER_ORIGIN}/`);
   }
 
   mainWindow.on('closed', () => {
@@ -162,10 +269,7 @@ function createWindow() {
   });
 }
 
-// Single instance lock
-const gotTheLock = app.requestSingleInstanceLock();
-
-if (!gotTheLock) {
+if (!clerk.isPrimaryInstance) {
   app.quit();
 } else {
   app.on('second-instance', () => {
@@ -176,31 +280,36 @@ if (!gotTheLock) {
   });
 
   app.whenReady().then(() => {
-    // Register protocol handler for app://bundle/...
-    protocol.handle('app', (request) => {
-      const parsedUrl = new URL(request.url);
-      let relativePath = decodeURIComponent(parsedUrl.pathname);
-      if (relativePath.startsWith('/')) {
-        relativePath = relativePath.slice(1);
-      }
-      if (!relativePath || relativePath === '') {
-        relativePath = 'index.html';
-      }
+    if (!devServerUrl) {
+      protocol.handle(RENDERER_SCHEME, (request) => {
+        const parsedUrl = new URL(request.url);
+        if (parsedUrl.host !== RENDERER_HOST) {
+          return new Response('Not found', { status: 404 });
+        }
 
-      const distDir = path.resolve(__dirname, '../dist');
-      let targetFile = path.normalize(path.join(distDir, relativePath));
+        let requestedPath;
+        try {
+          requestedPath = decodeURIComponent(parsedUrl.pathname);
+        } catch {
+          return new Response('Bad request', { status: 400 });
+        }
 
-      // Security check: ensure path stays within dist directory
-      if (!targetFile.startsWith(distDir)) {
-        return new Response('Forbidden', { status: 403 });
-      }
+        const targetFile = path.resolve(DIST_DIRECTORY, `.${requestedPath}`);
+        const relativePath = path.relative(DIST_DIRECTORY, targetFile);
+        if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+          return new Response('Forbidden', { status: 403 });
+        }
 
-      if (!fs.existsSync(targetFile) || fs.statSync(targetFile).isDirectory()) {
-        targetFile = path.join(distDir, 'index.html');
-      }
+        const hasExtension = /\.[^/]+$/.test(parsedUrl.pathname);
+        const filePath = hasExtension ? targetFile : path.join(DIST_DIRECTORY, 'index.html');
+        if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+          return new Response('Not found', { status: 404 });
+        }
 
-      return net.fetch(pathToFileURL(targetFile).toString());
-    });
+        return net.fetch(pathToFileURL(filePath).toString());
+      });
+      applyContentSecurityPolicy();
+    }
 
     createMenu();
     createWindow();
@@ -210,6 +319,10 @@ if (!gotTheLock) {
         createWindow();
       }
     });
+  });
+
+  app.on('before-quit', () => {
+    clerk.cleanup();
   });
 
   app.on('window-all-closed', () => {

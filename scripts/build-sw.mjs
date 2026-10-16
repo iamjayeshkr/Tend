@@ -1,5 +1,18 @@
 import { readdir, writeFile, readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-async function walk(dir){const out=[];for(const f of await readdir(dir,{withFileTypes:true})){const p=`${dir}/${f.name}`;if(f.isDirectory())out.push(...await walk(p));else if(f.name!=='sw.js')out.push(p.replace('dist/','./'));}return out;}
-const files=await walk('dist');const hash=createHash('sha256').update(await readFile('dist/index.html')).digest('hex').slice(0,12);
-await writeFile('dist/sw.js',`const CACHE='tend-${hash}';const FILES=${JSON.stringify(files)};self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)));});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('tend-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET'||new URL(e.request.url).origin!==location.origin)return;e.respondWith(caches.match(e.request,{ignoreVary:true}).then(r=>r||fetch(e.request).catch(()=>e.request.mode==='navigate'?caches.match('./index.html'):Response.error())));});`);
+
+async function walk(dir) {
+  const out = [];
+  for (const f of await readdir(dir, { withFileTypes: true })) {
+    if (f.name.startsWith('.')) continue;
+    const p = `${dir}/${f.name}`;
+    if (f.isDirectory()) out.push(...await walk(p));
+    else if (f.name !== 'sw.js') out.push(p.replace('dist/', './'));
+  }
+  return out;
+}
+
+const files = await walk('dist');
+const hash = createHash('sha256').update(await readFile('dist/index.html')).digest('hex').slice(0, 12);
+
+await writeFile('dist/sw.js', `const CACHE='tend-${hash}';const FILES=${JSON.stringify(files)};self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)));});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('tend-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',e=>{if(e.request.method!=='GET'||new URL(e.request.url).origin!==location.origin)return;if(e.request.mode==='navigate'){e.respondWith(fetch(e.request).catch(()=>caches.match('./index.html')));return;}e.respondWith(caches.match(e.request,{ignoreVary:true}).then(r=>r||fetch(e.request).catch(()=>Response.error())));});`);

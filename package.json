@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build && node scripts/build-sw.mjs && npm run verify:assets",
+    "build:test": "tsc -b && vite build --mode test && node scripts/build-sw.mjs && npm run verify:assets",
     "electron:start": "electron .",
     "electron:pack": "electron-builder --dir",
     "electron:build": "npm run build && electron-builder",
@@ -26,14 +27,16 @@
     "test:unit": "vitest run src",
     "typecheck": "tsc -b",
     "verify:assets": "node scripts/verify-assets.mjs dist/index.html dist",
-    "test:e2e": "playwright test"
+    "test:e2e": "npm run build:test && playwright test"
   },
   "dependencies": {
+    "@clerk/electron": "^0.1.0",
     "@clerk/react": "6.17.8",
     "@fontsource/caveat": "^5.2.8",
     "@fontsource/dm-sans": "^5.2.8",
     "@fontsource/fraunces": "^5.2.8",
     "@supabase/supabase-js": "2.117.3",
+    "electron-store": "^8.2.0",
     "lucide-react": "^0.577.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

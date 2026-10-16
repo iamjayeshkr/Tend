@@ -270,6 +270,67 @@ export default function Notebook({ state, commit, notify }: NotebookProps) {
     setOperationBusy(false);
   }
 
+  useEffect(() => {
+    const handleNewNoteEvent = () => {
+      void addPage();
+    };
+
+    const handleNotebookKeys = (e: KeyboardEvent) => {
+      const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+      const modKey = isMac ? e.metaKey : e.ctrlKey;
+
+      // Cmd+S: Save current draft immediately
+      if (modKey && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        void flush.current().then(ok => {
+          if (ok) callbacks.current.notify('Note saved.');
+        });
+        return;
+      }
+
+      // Cmd+N: New page inside notebook
+      if (modKey && !e.shiftKey && (e.key === 'n' || e.key === 'N')) {
+        e.preventDefault();
+        void addPage();
+        return;
+      }
+
+      // Alt+Left or Cmd+Alt+Up: Previous page
+      if ((e.altKey && e.key === 'ArrowLeft') || (modKey && e.altKey && e.key === 'ArrowUp')) {
+        e.preventDefault();
+        if (pageIndex > 0) {
+          void openPage(chronologicalPages[pageIndex - 1]);
+        }
+        return;
+      }
+
+      // Alt+Right or Cmd+Alt+Down: Next page
+      if ((e.altKey && e.key === 'ArrowRight') || (modKey && e.altKey && e.key === 'ArrowDown')) {
+        e.preventDefault();
+        if (pageIndex < chronologicalPages.length - 1) {
+          void openPage(chronologicalPages[pageIndex + 1]);
+        }
+        return;
+      }
+
+      // Cmd+Shift+P: Toggle pinned state
+      if (modKey && e.shiftKey && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+        const nextPinned = !draftRef.current.pinned;
+        changePage({ pinned: nextPinned });
+        callbacks.current.notify(nextPinned ? 'Pinned note.' : 'Unpinned note.');
+        return;
+      }
+    };
+
+    window.addEventListener('tend:new-note', handleNewNoteEvent);
+    window.addEventListener('keydown', handleNotebookKeys);
+    return () => {
+      window.removeEventListener('tend:new-note', handleNewNoteEvent);
+      window.removeEventListener('keydown', handleNotebookKeys);
+    };
+  }, [pageIndex, chronologicalPages]);
+
   async function removePage() {
     const selected = draftRef.current;
     setOperationBusy(true);

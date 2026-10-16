@@ -1,4 +1,5 @@
-import { ClerkProvider, useAuth, useClerk } from '@clerk/react'
+import { ClerkProvider as BrowserClerkProvider, useAuth, useClerk } from '@clerk/react'
+import { ClerkProvider as DesktopClerkProvider } from '@clerk/electron/react'
 import { createContext, useContext, useMemo, useRef, type ReactNode } from 'react'
 
 import type { PublicEnvironment } from '../security/env'
@@ -6,8 +7,13 @@ import type { TendIdentity } from './types'
 
 const TendIdentityContext = createContext<TendIdentity | null>(null)
 
-export function landingRedirectUrl(location: Pick<Location, 'origin' | 'pathname'>): string {
-  return `${location.origin}${location.pathname}#landing`
+export function landingRedirectUrl(
+  location: Pick<Location, 'origin' | 'protocol' | 'host' | 'pathname'>,
+): string {
+  const origin = location.origin === 'null'
+    ? `${location.protocol}//${location.host}`
+    : location.origin
+  return `${origin}${location.pathname}#landing`
 }
 
 function ClerkIdentityBridge({ children }: { children: ReactNode }) {
@@ -55,10 +61,20 @@ export function TendAuthProvider({
     )
   }
 
+  const identityBridge = <ClerkIdentityBridge>{children}</ClerkIdentityBridge>
+
+  if (typeof window !== 'undefined' && window.tendDesktop?.isElectron) {
+    return (
+      <DesktopClerkProvider publishableKey={environment.cloud.clerkPublishableKey}>
+        {identityBridge}
+      </DesktopClerkProvider>
+    )
+  }
+
   return (
-    <ClerkProvider publishableKey={environment.cloud.clerkPublishableKey}>
-      <ClerkIdentityBridge>{children}</ClerkIdentityBridge>
-    </ClerkProvider>
+    <BrowserClerkProvider publishableKey={environment.cloud.clerkPublishableKey}>
+      {identityBridge}
+    </BrowserClerkProvider>
   )
 }
 

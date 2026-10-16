@@ -1,4 +1,9 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge } = require('electron');
+const { exposeClerkBridge } = require('@clerk/electron/preload');
+
+// Exposes only Clerk's narrow IPC surface. Tokens remain in encrypted main-
+// process storage rather than browser localStorage.
+exposeClerkBridge();
 
 // Expose secure desktop bridge to the renderer
 contextBridge.exposeInMainWorld('tendDesktop', {

@@ -92,6 +92,9 @@ import { DocsPage } from "./DocsPage";
 import { AuthPage } from "./AuthPage";
 import { BotanicalDatePicker } from "./components/BotanicalDatePicker";
 import { AccountPanel } from "./auth/AccountPanel";
+import { CommandPalette } from "./components/CommandPalette";
+import { ShortcutsModal } from "./components/ShortcutsModal";
+import "./shortcuts.css";
 const native = () => (window as any).AndroidBridge;
 const categories: Category[] = [
   "study",
@@ -133,6 +136,8 @@ type Modal =
   | "bored"
   | "signout"
   | "account"
+  | "command"
+  | "shortcuts"
   | null;
 const navItems: {
   id: Page;
@@ -217,7 +222,12 @@ export default function App({ environment }: { environment: PublicEnvironment })
   const identity = useTendIdentity();
   const [s, setS] = useState<AppState | null>(null),
     stateRef = useRef<AppState | null>(null),
-    queue = useRef(Promise.resolve());
+    queue = useRef(Promise.resolve()),
+    actionsRef = useRef<{
+      go?: (p: Page) => void;
+      startTimer?: () => Promise<void>;
+      toggleTimer?: () => Promise<void>;
+    }>({});
   const [loadError, setLoadError] = useState(""),
     [page, setPage] = useState<Page>("today"),
     [modal, setModal] = useState<Modal>(null),
@@ -237,7 +247,12 @@ export default function App({ environment }: { environment: PublicEnvironment })
     }
     return "landing";
   });
-  const [authInitialMode, setAuthInitialMode] = useState<"signin" | "signup">("signin");
+  const [authInitialMode, setAuthInitialMode] = useState<"signin" | "signup">(() => {
+    if (typeof window !== "undefined" && window.location.hash.toLowerCase().startsWith("#signup")) {
+      return "signup";
+    }
+    return "signin";
+  });
 
   useEffect(() => {
     const syncHash = () => {
@@ -515,6 +530,125 @@ export default function App({ environment }: { environment: PublicEnvironment })
       prevFocus.current?.focus();
     };
   }, [modal]);
+
+  useEffect(() => {
+    const onGlobalKeyDown = (e: KeyboardEvent) => {
+      if (currentView !== "app") return;
+
+      const isMac = typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+      const modKey = isMac ? e.metaKey : e.ctrlKey;
+      const activeEl = document.activeElement;
+      const isInput =
+        activeEl &&
+        (activeEl.tagName === "INPUT" ||
+          activeEl.tagName === "TEXTAREA" ||
+          activeEl.tagName === "SELECT" ||
+          (activeEl as HTMLElement).isContentEditable);
+
+      // Cmd+K / Ctrl+K: Toggle Command Palette
+      if (modKey && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        setModal((cur) => (cur === "command" ? null : "command"));
+        return;
+      }
+
+      // Cmd+N / Ctrl+N: Quick New Note
+      if (modKey && !e.shiftKey && (e.key === "n" || e.key === "N")) {
+        e.preventDefault();
+        setModal(null);
+        actionsRef.current.go?.("notebook");
+        window.dispatchEvent(new CustomEvent("tend:new-note"));
+        return;
+      }
+
+      // Cmd+T / Ctrl+T: Quick New Task
+      if (modKey && !e.shiftKey && (e.key === "t" || e.key === "T")) {
+        e.preventDefault();
+        setModal("task");
+        return;
+      }
+
+      // Cmd+Shift+F: Toggle Focus Timer
+      if (modKey && e.shiftKey && (e.key === "f" || e.key === "F")) {
+        e.preventDefault();
+        if (stateRef.current?.timer) {
+          void actionsRef.current.toggleTimer?.();
+        } else {
+          actionsRef.current.go?.("focus");
+          void actionsRef.current.startTimer?.();
+        }
+        return;
+      }
+
+      // Cmd+Shift+R: Evening Reflection
+      if (modKey && e.shiftKey && (e.key === "r" || e.key === "R")) {
+        e.preventDefault();
+        setModal("review");
+        return;
+      }
+
+      // Cmd+1 to Cmd+6: Quick Page Switching
+      if (modKey && !e.shiftKey && !e.altKey) {
+        if (e.key === "1") { e.preventDefault(); actionsRef.current.go?.("today"); return; }
+        if (e.key === "2") { e.preventDefault(); actionsRef.current.go?.("rhythm"); return; }
+        if (e.key === "3") { e.preventDefault(); actionsRef.current.go?.("focus"); return; }
+        if (e.key === "4") { e.preventDefault(); actionsRef.current.go?.("notebook"); return; }
+        if (e.key === "5") { e.preventDefault(); actionsRef.current.go?.("reflect"); return; }
+        if (e.key === "6") { e.preventDefault(); actionsRef.current.go?.("you"); return; }
+        if (e.key === ",") { e.preventDefault(); setModal("settings"); return; }
+      }
+
+      // When NOT typing inside an input/textarea and NO modal is open:
+      if (!isInput && !modal) {
+        // '?' -> Shortcuts Guide Modal
+        if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+          e.preventDefault();
+          setModal("shortcuts");
+          return;
+        }
+
+        // 'n' -> New Note
+        if (e.key === "n" || e.key === "N") {
+          e.preventDefault();
+          actionsRef.current.go?.("notebook");
+          window.dispatchEvent(new CustomEvent("tend:new-note"));
+          return;
+        }
+
+        // 't' -> New Task
+        if (e.key === "t" || e.key === "T") {
+          e.preventDefault();
+          setModal("task");
+          return;
+        }
+
+        // '1'-'6' single key page jump
+        if (["1", "2", "3", "4", "5", "6"].includes(e.key)) {
+          e.preventDefault();
+          const targetPages: Page[] = ["today", "rhythm", "focus", "notebook", "reflect", "you"];
+          const targetPage = targetPages[parseInt(e.key, 10) - 1];
+          if (targetPage) actionsRef.current.go?.(targetPage);
+          return;
+        }
+
+        // Space -> Timer toggle
+        if (e.key === " ") {
+          if (page === "focus" || stateRef.current?.timer) {
+            e.preventDefault();
+            if (stateRef.current?.timer) {
+              void actionsRef.current.toggleTimer?.();
+            } else {
+              void actionsRef.current.startTimer?.();
+            }
+            return;
+          }
+        }
+      }
+    };
+
+    window.addEventListener("keydown", onGlobalKeyDown);
+    return () => window.removeEventListener("keydown", onGlobalKeyDown);
+  }, [currentView, modal, page]);
   const commit = (fn: (v: AppState) => AppState): Promise<boolean> =>
     new Promise((resolve) => {
       queue.current = queue.current.then(async () => {
@@ -658,7 +792,6 @@ export default function App({ environment }: { environment: PublicEnvironment })
     }
     await finishAccountSignOut();
   };
-
   if (currentView === "landing") {
     return (
       <LandingPage
@@ -858,6 +991,9 @@ export default function App({ environment }: { environment: PublicEnvironment })
       else native()?.cancelTimer?.();
     }
   };
+
+  actionsRef.current = { go, startTimer, toggleTimer };
+
   const saveForm = async (
     e: React.FormEvent<HTMLFormElement>,
     action: (f: FormData) => Promise<boolean>,
@@ -1076,6 +1212,8 @@ export default function App({ environment }: { environment: PublicEnvironment })
     bored: "A little space to just be.",
     signout: "Keep every change safe.",
     account: "Account & Connected Devices",
+    command: "Quick actions & shortcuts",
+    shortcuts: "Keyboard shortcuts",
   };
   const selectedReview = s.reviews.find((r) => r.date === today);
   if (!s.onboarded || showGuide) return <Welcome settings={s.settings} onCancel={s.onboarded?()=>setShowGuide(false):undefined} onFinish={async(settings,intention)=>{const ok=await commit(v=>({...v,onboarded:true,settings,tasks:intention?[...v.tasks,{id:uid(),title:intention,done:false,date:today,category:"study" as Category}]:v.tasks}));if(ok){setShowGuide(false);setFocusMins(settings.focusMinutes);go("today");if(stateRef.current)alarmSync(stateRef.current);}return ok;}} onLanding={() => navigateToView("landing", "#landing")} onDocs={() => navigateToView("docs", "#docs")} />;
@@ -1172,6 +1310,16 @@ export default function App({ environment }: { environment: PublicEnvironment })
             Account
           </button>
         )}
+        <button className="settings-nav" onClick={() => setModal("command")}>
+          <Search size={18} />
+          <span>Quick actions</span>
+          <kbd className="shortcut-badge" style={{ marginLeft: "auto" }}>⌘K</kbd>
+        </button>
+        <button className="settings-nav" onClick={() => setModal("shortcuts")}>
+          <HelpCircle size={18} />
+          <span>Shortcuts</span>
+          <kbd className="shortcut-badge" style={{ marginLeft: "auto" }}>?</kbd>
+        </button>
         <button className="settings-nav" onClick={() => setModal("settings")}>
           <Settings size={18} />
           Preferences
@@ -1217,6 +1365,16 @@ export default function App({ environment }: { environment: PublicEnvironment })
           </button>
           <div className="breadcrumb">A day of your own <span>/</span> {page === "rhythm" ? "Daily rhythm" : page === "reflect" ? "Reflections" : navItems.find(n=>n.id===page)?.label}</div>
           <div className="top-actions">
+            <button
+              className="topbar-search-trigger"
+              onClick={() => setModal("command")}
+              title="Search actions, pages, and shortcuts (⌘K)"
+              aria-label="Quick Actions & Shortcuts"
+            >
+              <Search size={14} />
+              <span className="search-trigger-text">Quick actions…</span>
+              <kbd className="shortcut-badge">{typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform) ? "⌘K" : "Ctrl+K"}</kbd>
+            </button>
             {page !== "notebook" && <SyncStatus cloudEnabled={identity.status === "signedIn"} state={syncState} compact />}
             <button
               className="topbar-nav-button"
@@ -2025,7 +2183,7 @@ export default function App({ environment }: { environment: PublicEnvironment })
           />
         </div>
       )}
-      {modal && modal !== "account" && (
+      {modal && modal !== "account" && modal !== "command" && modal !== "shortcuts" && (
         <div
           className="modal-backdrop"
           onMouseDown={(e) => {
@@ -3459,6 +3617,29 @@ export default function App({ environment }: { environment: PublicEnvironment })
           </div>
         </div>
       )}
+      <CommandPalette
+        isOpen={modal === "command"}
+        onClose={() => setModal(null)}
+        onGoPage={(p) => go(p)}
+        onNewNote={() => {
+          go("notebook");
+          window.dispatchEvent(new CustomEvent("tend:new-note"));
+        }}
+        onNewTask={() => setModal("task")}
+        onToggleTimer={toggleTimer}
+        onStartTimer={startTimer}
+        timerActive={Boolean(active)}
+        timerPaused={Boolean(active?.pausedAt)}
+        onOpenReflection={() => setModal("review")}
+        onOpenActivity={() => setModal("activity")}
+        onOpenSettings={() => setModal("settings")}
+        onOpenShortcutsGuide={() => setModal("shortcuts")}
+        onOpenAuth={() => navigateToView("auth", "#auth")}
+      />
+      <ShortcutsModal
+        isOpen={modal === "shortcuts"}
+        onClose={() => setModal(null)}
+      />
     </div>
   );
 }

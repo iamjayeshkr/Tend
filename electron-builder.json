@@ -3,6 +3,12 @@
   "appId": "app.tend.desktop",
   "productName": "Tend",
   "copyright": "Copyright © 2026 Tend",
+  "protocols": [
+    {
+      "name": "Tend",
+      "schemes": ["tend"]
+    }
+  ],
   "directories": {
     "output": "dist-electron",
     "buildResources": "build"

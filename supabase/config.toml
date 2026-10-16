@@ -10,6 +10,21 @@ project_id = "PARA_SF_copy"
 # verifier cannot validate these third-party sessions.
 verify_jwt = false
 
+[functions.account]
+# Account requests carry Clerk session tokens and are verified inside the
+# function before request bodies, device state, or account data are read.
+verify_jwt = false
+
+[functions.clerk-webhook]
+# Clerk webhooks use Svix signatures rather than Supabase JWTs. The function
+# rejects missing, stale, or invalid signatures before applying any change.
+verify_jwt = false
+
+[functions.retention]
+# Scheduled retention calls use a dedicated constant-time scheduler secret.
+# They do not carry a Supabase user JWT.
+verify_jwt = false
+
 [api]
 enabled = true
 # Port to use for the API URL.
