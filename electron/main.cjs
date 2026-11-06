@@ -73,7 +73,7 @@ function desktopBuildConfiguration() {
       clerkFrontendApiHost = deriveClerkFrontendApiHost(process.env.VITE_CLERK_PUBLISHABLE_KEY);
     }
     const supabaseOrigin = typeof parsed.supabaseOrigin === 'string'
-      && /^https:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(parsed.supabaseOrigin)
+      && /^https?:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(parsed.supabaseOrigin)
       ? parsed.supabaseOrigin
       : '';
     return { clerkFrontendApiHost, supabaseOrigin };
