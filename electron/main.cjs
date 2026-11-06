@@ -46,22 +46,88 @@ function originOf(url) {
   }
 }
 
+function deriveClerkFrontendApiHost(publishableKey) {
+  if (!publishableKey || typeof publishableKey !== 'string') return '';
+  const parts = publishableKey.split('_');
+  if (parts.length >= 3 && parts[0] === 'pk' && (parts[1] === 'test' || parts[1] === 'live')) {
+    const raw = parts.slice(2).join('_').replace(/\$$/, '');
+    try {
+      const decoded = Buffer.from(raw, 'base64').toString('utf8').trim().replace(/\$$/, '');
+      if (decoded && /^[a-z0-9.-]+(?::\d+)?$/i.test(decoded)) return decoded;
+    } catch {
+      // ignore
+    }
+  }
+  return '';
+}
+
 function desktopBuildConfiguration() {
   const empty = { clerkFrontendApiHost: '', supabaseOrigin: '' };
   try {
     const parsed = JSON.parse(fs.readFileSync(path.join(DIST_DIRECTORY, 'desktop-config.json'), 'utf8'));
-    const clerkFrontendApiHost = typeof parsed.clerkFrontendApiHost === 'string'
+    let clerkFrontendApiHost = typeof parsed.clerkFrontendApiHost === 'string'
       && /^[a-z0-9.-]+(?::\d+)?$/i.test(parsed.clerkFrontendApiHost)
       ? parsed.clerkFrontendApiHost
       : '';
+    if (!clerkFrontendApiHost && process.env.VITE_CLERK_PUBLISHABLE_KEY) {
+      clerkFrontendApiHost = deriveClerkFrontendApiHost(process.env.VITE_CLERK_PUBLISHABLE_KEY);
+    }
     const supabaseOrigin = typeof parsed.supabaseOrigin === 'string'
       && /^https:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(parsed.supabaseOrigin)
       ? parsed.supabaseOrigin
       : '';
     return { clerkFrontendApiHost, supabaseOrigin };
   } catch {
-    return empty;
+    const clerkFrontendApiHost = deriveClerkFrontendApiHost(process.env.VITE_CLERK_PUBLISHABLE_KEY);
+    return { clerkFrontendApiHost, supabaseOrigin: '' };
   }
+}
+
+function isClerkRequest(urlString, configuredHost) {
+  try {
+    const url = new URL(urlString);
+    const hostname = url.hostname.toLowerCase();
+    const targetHost = configuredHost ? configuredHost.split(':')[0].toLowerCase() : '';
+    if (targetHost && (hostname === targetHost || hostname.endsWith('.' + targetHost))) {
+      return true;
+    }
+    return (
+      hostname.endsWith('.clerk.accounts.dev') ||
+      hostname.endsWith('.clerk.com') ||
+      hostname.endsWith('.clerk.app') ||
+      hostname.endsWith('.clerk.dev') ||
+      hostname === 'clerk.accounts.dev' ||
+      hostname === 'clerk.com' ||
+      hostname === 'api.clerk.com'
+    );
+  } catch {
+    return false;
+  }
+}
+
+function setupHeaderInterceptors() {
+  const { clerkFrontendApiHost } = desktopBuildConfiguration();
+
+  // For security purposes, only one of the 'Origin' and 'Authorization' headers should be provided, but not both.
+  // In browser contexts, the 'Origin' header is set automatically by the browser.
+  // In native application contexts (e.g. mobile apps / Electron desktop), the client sets the 'Authorization' header.
+  // Chromium in Electron automatically injects the renderer's Origin header into fetch requests.
+  // We strip the browser-injected 'Origin' (and Referer) header on outgoing requests to Clerk so that only
+  // the 'Authorization' header is provided, resolving origin_authorization_headers_conflict.
+  session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    const requestHeaders = { ...details.requestHeaders };
+
+    if (isClerkRequest(details.url, clerkFrontendApiHost)) {
+      for (const key of Object.keys(requestHeaders)) {
+        const lower = key.toLowerCase();
+        if (lower === 'origin' || lower === 'referer') {
+          delete requestHeaders[key];
+        }
+      }
+    }
+
+    callback({ requestHeaders });
+  });
 }
 
 function applyContentSecurityPolicy() {
@@ -280,6 +346,8 @@ if (!clerk.isPrimaryInstance) {
   });
 
   app.whenReady().then(() => {
+    setupHeaderInterceptors();
+
     if (!devServerUrl) {
       protocol.handle(RENDERER_SCHEME, (request) => {
         const parsedUrl = new URL(request.url);

@@ -54,4 +54,13 @@ describe('desktop Clerk boundary', () => {
     expect(main).not.toContain("'unsafe-eval'")
     expect(builder.protocols).toContainEqual({ name: 'Tend', schemes: ['tend'] })
   })
+
+  it('strips Origin and Referer headers on Clerk requests to satisfy native auth requirements', async () => {
+    const main = await readFile(new URL('../electron/main.cjs', import.meta.url), 'utf8')
+    expect(main).toContain('setupHeaderInterceptors()')
+    expect(main).toContain('onBeforeSendHeaders')
+    expect(main).toContain("lower === 'origin'")
+    expect(main).toContain("lower === 'referer'")
+    expect(main).toContain('isClerkRequest')
+  })
 })
