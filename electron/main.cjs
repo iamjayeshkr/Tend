@@ -105,31 +105,6 @@ function isClerkRequest(urlString, configuredHost) {
   }
 }
 
-function setupHeaderInterceptors() {
-  const { clerkFrontendApiHost } = desktopBuildConfiguration();
-
-  // For security purposes, only one of the 'Origin' and 'Authorization' headers should be provided, but not both.
-  // In browser contexts, the 'Origin' header is set automatically by the browser.
-  // In native application contexts (e.g. mobile apps / Electron desktop), the client sets the 'Authorization' header.
-  // Chromium in Electron automatically injects the renderer's Origin header into fetch requests.
-  // We strip the browser-injected 'Origin' (and Referer) header on outgoing requests to Clerk so that only
-  // the 'Authorization' header is provided, resolving origin_authorization_headers_conflict.
-  session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
-    const requestHeaders = { ...details.requestHeaders };
-
-    if (isClerkRequest(details.url, clerkFrontendApiHost)) {
-      for (const key of Object.keys(requestHeaders)) {
-        const lower = key.toLowerCase();
-        if (lower === 'origin' || lower === 'referer') {
-          delete requestHeaders[key];
-        }
-      }
-    }
-
-    callback({ requestHeaders });
-  });
-}
-
 function applyContentSecurityPolicy() {
   const { clerkFrontendApiHost, supabaseOrigin } = desktopBuildConfiguration();
   const clerkOrigin = clerkFrontendApiHost ? `https://${clerkFrontendApiHost}` : '';
@@ -148,7 +123,7 @@ function applyContentSecurityPolicy() {
     'https://clerk-telemetry.com',
     'https://*.clerk-telemetry.com',
   ].filter(Boolean);
-  const policy = [
+  return [
     "default-src 'self'",
     `script-src ${scriptSources.join(' ')}`,
     `connect-src ${connectSources.join(' ')}`,
@@ -163,22 +138,65 @@ function applyContentSecurityPolicy() {
     "base-uri 'none'",
     "frame-ancestors 'none'",
   ].join('; ');
+}
 
-  session.defaultSession.webRequest.onHeadersReceived(
-    { urls: [`${PACKAGED_RENDERER_ORIGIN}/*`] },
-    (details, callback) => {
-      if (details.resourceType !== 'mainFrame') {
-        callback({ responseHeaders: details.responseHeaders });
-        return;
+function setupHeaderInterceptors() {
+  const { clerkFrontendApiHost } = desktopBuildConfiguration();
+  const cspPolicy = applyContentSecurityPolicy();
+
+  // For security purposes, only one of the 'Origin' and 'Authorization' headers should be provided, but not both.
+  // In browser contexts, the 'Origin' header is set automatically by the browser.
+  // In native application contexts (e.g. mobile apps / Electron desktop), the client sets the 'Authorization' header.
+  // Chromium in Electron automatically injects the renderer's Origin header into fetch requests.
+  // Preflight OPTIONS requests and native requests retain Origin so CORS headers are negotiated properly.
+  session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    const requestHeaders = { ...details.requestHeaders };
+
+    if (isClerkRequest(details.url, clerkFrontendApiHost)) {
+      for (const key of Object.keys(requestHeaders)) {
+        const lower = key.toLowerCase();
+        if (lower === 'referer') {
+          delete requestHeaders[key];
+        }
+        if (lower === 'origin' && !details.url.includes('_is_native=1') && details.method !== 'OPTIONS') {
+          delete requestHeaders[key];
+        }
       }
-      callback({
-        responseHeaders: {
-          ...details.responseHeaders,
-          'Content-Security-Policy': [policy],
-        },
-      });
-    },
-  );
+    }
+
+    callback({ requestHeaders });
+  });
+
+  // Single unified onHeadersReceived listener for Content-Security-Policy and Clerk CORS
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const responseHeaders = { ...details.responseHeaders };
+
+    if (details.url.startsWith(`${PACKAGED_RENDERER_ORIGIN}/`) && details.resourceType === 'mainFrame') {
+      responseHeaders['Content-Security-Policy'] = [cspPolicy];
+    }
+
+    if (isClerkRequest(details.url, clerkFrontendApiHost)) {
+      const allowedOrigin = devServerUrl ? originOf(devServerUrl) : PACKAGED_RENDERER_ORIGIN;
+      responseHeaders['access-control-allow-origin'] = [allowedOrigin];
+      responseHeaders['access-control-allow-credentials'] = ['true'];
+      responseHeaders['access-control-allow-headers'] = ['Authorization, Content-Type, *'];
+      responseHeaders['access-control-allow-methods'] = ['GET, POST, PUT, PATCH, DELETE, OPTIONS'];
+    }
+
+    callback({ responseHeaders });
+  });
+
+  session.defaultSession.webRequest.onResponseStarted((details) => {
+    if (isClerkRequest(details.url, clerkFrontendApiHost)) {
+      console.log(`[Clerk FAPI Response] ${details.method} ${details.url} -> ${details.statusCode}`);
+    }
+  });
+
+  session.defaultSession.webRequest.onErrorOccurred((details) => {
+    if (isClerkRequest(details.url, clerkFrontendApiHost)) {
+      console.error(`[Clerk FAPI Error] ${details.method} ${details.url} -> ${details.error}`);
+    }
+  });
 }
 
 function createMenu() {
@@ -294,6 +312,10 @@ function createWindow() {
     mainWindow.show();
   });
 
+  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    console.log(`[Renderer Console] [Level ${level}] ${message} (${sourceId}:${line})`);
+  });
+
   const allowedOrigins = new Set(
     [devServerUrl, PACKAGED_RENDERER_ORIGIN]
       .filter(Boolean)
@@ -376,7 +398,6 @@ if (!clerk.isPrimaryInstance) {
 
         return net.fetch(pathToFileURL(filePath).toString());
       });
-      applyContentSecurityPolicy();
     }
 
     createMenu();
