@@ -86,8 +86,7 @@ export function Welcome({
   userEmail?: string;
   userName?: string;
 }) {
-  const [step, setStep] = useState(0),
-    [name, setName] = useState(settings.name || userName || ''),
+  const [name, setName] = useState(settings.name || userName || ''),
     [wake, setWake] = useState(settings.wake || '06:30'),
     [sleep, setSleep] = useState(settings.sleep || '23:00'),
     [minutes, setMinutes] = useState(settings.focusMinutes || 25),
@@ -98,7 +97,8 @@ export function Welcome({
   const cleanTime = (val: string, fallback: string) =>
     /^([01]\d|2[0-3]):[0-5]\d$/.test(val) ? val : fallback;
 
-  const finish = async () => {
+  const submitSetup = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setSaving(true);
     setError('');
     const finalWake = cleanTime(wake, settings.wake || '06:30');
@@ -163,18 +163,6 @@ export function Welcome({
         <button
           type="button"
           className="welcome-brand-btn"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '3px',
-            background: 'none',
-            border: 'none',
-            padding: 0,
-            font: '500 40px Fraunces',
-            color: 'inherit',
-            cursor: onLanding ? 'pointer' : 'default',
-            textAlign: 'left',
-          }}
           onClick={onLanding}
           aria-label="Tend overview"
         >
@@ -187,18 +175,6 @@ export function Welcome({
           {userEmail && (
             <span
               className="welcome-user-chip"
-              style={{
-                fontSize: '11px',
-                color: 'var(--muted)',
-                background: 'var(--surface)',
-                border: '1px solid var(--line)',
-                padding: '4px 8px',
-                borderRadius: '12px',
-                maxWidth: '160px',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
               title={`Signed in as ${userEmail}`}
             >
               {userEmail}
@@ -224,7 +200,7 @@ export function Welcome({
               Docs
             </button>
           )}
-          {onSignOut ? (
+          {onSignOut && (
             <button
               type="button"
               className="outline"
@@ -235,79 +211,41 @@ export function Welcome({
               <LogOut size={13} />
               Sign out
             </button>
-          ) : onAuth ? (
-            <button
-              type="button"
-              className="outline"
-              style={{ padding: '6px 12px', fontSize: '12px' }}
-              onClick={onAuth}
-            >
-              Sign in / Sign up
-            </button>
-          ) : null}
+          )}
           <span className="welcome-private">
             <ShieldCheck size={15} />Private by nature
           </span>
         </div>
       </header>
-      <main className={`welcome-book welcome-step-${step}`}>
+      <main className="welcome-book welcome-single-screen">
         <aside className="welcome-art">
           <span className="eyebrow">A FIELD GUIDE TO YOUR DAY</span>
           <Garden />
-          <span className="hand">
-            {step === 0 && 'a little structure. a lot of you.'}
-            {step === 1 && 'your rhythm, your hours.'}
-            {step === 2 && 'one focus at a time.'}
-          </span>
+          <span className="hand">a little structure. a lot of you.</span>
           <div className="welcome-paper-stamp">
             <Leaf size={19} />
             <span>
-              {step === 0 && (
-                <>
-                  GROW AT<br />YOUR OWN PACE
-                </>
-              )}
-              {step === 1 && (
-                <>
-                  QUIET<br />CONSISTENCY
-                </>
-              )}
-              {step === 2 && (
-                <>
-                  DEFEND YOUR<br />ATTENTION
-                </>
-              )}
+              GROW AT<br />YOUR OWN PACE
             </span>
+          </div>
+          <div className="welcome-side-features">
+            <div>
+              <Sun size={15} />
+              <span><strong>Today</strong> · One task at a time</span>
+            </div>
+            <div>
+              <Timer size={15} />
+              <span><strong>Focus</strong> · Distraction shield</span>
+            </div>
+            <div>
+              <BookOpen size={15} />
+              <span><strong>Notebook</strong> · Quiet place to think</span>
+            </div>
           </div>
         </aside>
         <section className="welcome-copy" aria-live="polite">
-          <div className="welcome-progress">
-            <span>
-              {String(step + 1).padStart(2, '0')} <small>/ 03</small>
-            </span>
-            <div role="tablist" aria-label="Onboarding steps" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              {[0, 1, 2].map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  role="tab"
-                  aria-selected={step === n}
-                  aria-label={`Step ${n + 1}`}
-                  onClick={() => setStep(n)}
-                  className={`welcome-progress-step-btn ${step >= n ? 'done' : ''}`}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    padding: '6px 1px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                  }}
-                >
-                  <i className={step >= n ? 'done' : ''} />
-                </button>
-              ))}
-            </div>
+          <div className="welcome-quick-header">
+            <span className="eyebrow">QUICK SETUP</span>
             {onCancel ? (
               <button className="icon-button" onClick={onCancel} aria-label="Close guide" style={{ marginLeft: 'auto' }}>
                 <X size={19} />
@@ -323,219 +261,120 @@ export function Welcome({
               </button>
             )}
           </div>
-          {step === 0 && (
-            <>
-              <span className="eyebrow">LESS SCROLLING. MORE LIVING.</span>
-              <h1>
-                Make space for<br />
-                <em>what matters.</em>
-              </h1>
-              <p className="welcome-description">
-                Tend helps you turn “I should” into “I did.” Choose one thing, give it your
-                attention, and leave the rest for later.
+
+          <h1>
+            Make space for<br />
+            <em>what matters.</em>
+          </h1>
+          <p className="welcome-description">
+            A quiet space to defend what you promised yourself. Personalize a few calm defaults or start right away.
+          </p>
+
+          <form onSubmit={submitSetup} className="welcome-single-form">
+            <label className="field">
+              <span>
+                Your name <small>(optional)</small>
+              </span>
+              <input
+                autoComplete="given-name"
+                placeholder="What should we call you?"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={40}
+              />
+            </label>
+
+            <div className="form-row">
+              <label className="field">
+                <span>Wake up</span>
+                <input
+                  type="time"
+                  value={wake}
+                  onChange={(e) => setWake(e.target.value)}
+                  required
+                />
+              </label>
+              <label className="field">
+                <span>Wind down</span>
+                <input
+                  type="time"
+                  value={sleep}
+                  onChange={(e) => setSleep(e.target.value)}
+                  required
+                />
+              </label>
+            </div>
+
+            <fieldset className="welcome-duration">
+              <legend>A comfortable focus session</legend>
+              {[15, 25, 45].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  aria-pressed={minutes === n}
+                  className={minutes === n ? 'selected' : ''}
+                  onClick={() => setMinutes(n)}
+                >
+                  {n} min{n === 25 && <small>A good start</small>}
+                </button>
+              ))}
+            </fieldset>
+
+            <label className="field">
+              <span>
+                One thing for today <small>(optional)</small>
+              </span>
+              <input
+                placeholder="e.g. Finish my biology revision"
+                maxLength={180}
+                value={intention}
+                onChange={(e) => setIntention(e.target.value)}
+              />
+            </label>
+
+            {error && (
+              <p role="alert" className="form-error">
+                {error}
               </p>
-              <ol className="welcome-steps">
-                <li>
-                  <span>
-                    <CheckCheck size={18} />
-                  </span>
-                  <div>
-                    <strong>Choose one thing</strong>
-                    <p>A chapter, an assignment, a small next step.</p>
-                  </div>
-                </li>
-                <li>
-                  <span>
-                    <Timer size={18} />
-                  </span>
-                  <div>
-                    <strong>Protect your focus</strong>
-                    <p>Set a timer. Add an app shield when you’re ready.</p>
-                  </div>
-                </li>
-                <li>
-                  <span>
-                    <BookOpen size={18} />
-                  </span>
-                  <div>
-                    <strong>Keep what you learn</strong>
-                    <p>A notebook for thoughts and a record of your day.</p>
-                  </div>
-                </li>
-              </ol>
-              <button className="primary welcome-next" onClick={() => setStep(1)}>
-                Make it mine<ArrowRight size={18} />
+            )}
+
+            <div className="welcome-action-column" style={{ marginTop: '22px' }}>
+              <button
+                type="submit"
+                className="primary welcome-submit-btn"
+                disabled={saving}
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
+                {saving ? 'Saving…' : 'Start my day'}
+                <ArrowRight size={18} />
               </button>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginTop: '12px' }}>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '10px' }}>
                 <button
                   type="button"
                   className="text-button"
                   style={{ fontSize: '12px', color: 'var(--muted)' }}
                   onClick={handleSkip}
                 >
-                  Skip setup & explore Tend
+                  Use defaults & explore Tend
                 </button>
               </div>
-              <p className="welcome-footnote">
-                {onSignOut ? 'Signed in securely with your Tend account.' : 'No account required. Works offline.'}{' '}
-                {onLanding && (
-                  <button
-                    type="button"
-                    className="text-button"
-                    style={{ fontSize: '11px', textDecoration: 'underline' }}
-                    onClick={onLanding}
-                  >
-                    Product overview & manifesto ↗
-                  </button>
-                )}
-              </p>
-            </>
-          )}
-          {step === 1 && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                setError('');
-                setStep(2);
-              }}
-            >
-              <span className="eyebrow">LET’S START WITH YOU</span>
-              <h1>
-                A day that<br />feels like <em>yours.</em>
-              </h1>
-              <p className="welcome-description">
-                A few preferences to get started. You can change these anytime in You.
-              </p>
-              <label className="field">
-                <span>
-                  Your name <small>(optional)</small>
-                </span>
-                <input
-                  autoComplete="given-name"
-                  placeholder="What should we call you?"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  maxLength={40}
-                />
-              </label>
-              <div className="form-row">
-                <label className="field">
-                  <span>Wake up</span>
-                  <input
-                    type="time"
-                    value={wake}
-                    onChange={(e) => setWake(e.target.value)}
-                    required
-                  />
-                </label>
-                <label className="field">
-                  <span>Wind down</span>
-                  <input
-                    type="time"
-                    value={sleep}
-                    onChange={(e) => setSleep(e.target.value)}
-                    required
-                  />
-                </label>
-              </div>
-              <fieldset className="welcome-duration">
-                <legend>A comfortable focus session</legend>
-                {[15, 25, 45].map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    aria-pressed={minutes === n}
-                    className={minutes === n ? 'selected' : ''}
-                    onClick={() => setMinutes(n)}
-                  >
-                    {n} min{n === 25 && <small>A good start</small>}
-                  </button>
-                ))}
-              </fieldset>
-              <div className="welcome-action-row">
-                <button type="button" className="text-button" onClick={() => setStep(0)}>
-                  <ArrowLeft size={16} />Back
+            </div>
+
+            <p className="welcome-footnote">
+              {onSignOut ? 'Signed in securely with your Tend account.' : 'No account required. Works offline.'}{' '}
+              {onLanding && (
+                <button
+                  type="button"
+                  className="text-button"
+                  style={{ fontSize: '11px', textDecoration: 'underline' }}
+                  onClick={onLanding}
+                >
+                  Product overview & manifesto ↗
                 </button>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <button
-                    type="button"
-                    className="text-button"
-                    style={{ fontSize: '12px', color: 'var(--muted)' }}
-                    onClick={handleSkip}
-                  >
-                    Skip
-                  </button>
-                  <button type="submit" className="primary">
-                    Next<ArrowRight size={18} />
-                  </button>
-                </div>
-              </div>
-            </form>
-          )}
-          {step === 2 && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void finish();
-              }}
-            >
-              <span className="eyebrow">YOUR FIRST SMALL STEP</span>
-              <h1>
-                What deserves<br />your <em>attention?</em>
-              </h1>
-              <p className="welcome-description">
-                Make it something you can actually start. “Read 10 pages” is a great first step.
-              </p>
-              <label className="field">
-                <span>
-                  One thing for today <small>(optional)</small>
-                </span>
-                <input
-                  placeholder="e.g. Finish my biology revision"
-                  maxLength={180}
-                  value={intention}
-                  onChange={(e) => setIntention(e.target.value)}
-                />
-              </label>
-              <div className="welcome-map">
-                <span className="hand">here’s where everything lives</span>
-                <div>
-                  <Sun size={17} />
-                  <strong>Today</strong>
-                  <span>Your next step</span>
-                </div>
-                <div>
-                  <Timer size={17} />
-                  <strong>Focus</strong>
-                  <span>Timer & app shield</span>
-                </div>
-                <div>
-                  <BookOpen size={17} />
-                  <strong>Notebook</strong>
-                  <span>A place to think</span>
-                </div>
-                <div>
-                  <Leaf size={17} />
-                  <strong>You</strong>
-                  <span>Routine, logs & reflection</span>
-                </div>
-              </div>
-              {error && (
-                <p role="alert" className="form-error">
-                  {error}
-                </p>
               )}
-              <div className="welcome-action-row">
-                <button type="button" className="text-button" onClick={() => setStep(1)}>
-                  <ArrowLeft size={16} />Back
-                </button>
-                <button className="primary" disabled={saving}>
-                  {saving ? 'Saving…' : 'Start my day'}
-                  <ArrowRight size={18} />
-                </button>
-              </div>
-            </form>
-          )}
+            </p>
+          </form>
         </section>
       </main>
       <footer className="welcome-bottom">

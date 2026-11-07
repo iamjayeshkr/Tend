@@ -6,17 +6,17 @@ const FIRST_TASK = 'Understand binary search';
 
 async function openApp(page: Page) {
   await page.goto('/#app');
-  await expect(page.getByRole('button', { name: 'Make it mine', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Start my day', exact: true })).toBeVisible();
 }
 
 async function finishSetup(page: Page, intention = FIRST_TASK) {
-  await page.getByRole('button', { name: 'Make it mine', exact: true }).click();
   await page.getByLabel(/Your name/).fill('Mira');
   await page.getByLabel('Wake up', { exact: true }).fill('07:00');
   await page.getByLabel('Wind down', { exact: true }).fill('22:30');
   await page.getByRole('button', { name: /^25 min/ }).click();
-  await page.getByRole('button', { name: 'Next', exact: true }).click();
-  await page.getByLabel(/One thing for today/).fill(intention);
+  if (intention) {
+    await page.getByLabel(/One thing for today/).fill(intention);
+  }
   await page.getByRole('button', { name: 'Start my day', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Your next step' })).toBeVisible();
 }
@@ -79,7 +79,7 @@ test('landing page loads at root and opens app dashboard and docs', async ({ pag
   await expect(page.getByRole('heading', { name: /Make space for/i })).toBeVisible();
   await expect(page.getByRole('button', { name: /Open Dashboard/i }).first()).toBeVisible();
   await page.getByRole('button', { name: /Open Dashboard/i }).first().click();
-  await expect(page.getByRole('button', { name: 'Make it mine', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Start my day', exact: true })).toBeVisible();
 });
 
 test('auth routes fail closed without cloud configuration and guest mode stays explicit', async ({ page }) => {
@@ -94,7 +94,7 @@ test('auth routes fail closed without cloud configuration and guest mode stays e
 
   await page.getByRole('button', { name: 'Continue as Guest', exact: true }).click();
   await expect(page).toHaveURL(/#app$/);
-  await expect(page.getByRole('button', { name: 'Make it mine', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Start my day', exact: true })).toBeVisible();
 });
 
 test('guided first run leads to one task and a four-tab app', async ({ page }, testInfo) => {
@@ -115,7 +115,7 @@ test('guided first run leads to one task and a four-tab app', async ({ page }, t
   await expect(account).toContainText('Cloud sync is optional');
   await expect(account).toContainText('Your data stays on this device');
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Make it mine', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Start my day', exact: true })).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Your next step' })).toContainText(FIRST_TASK);
   const state = await readState(page);
   expect(state.onboarded).toBe(true);

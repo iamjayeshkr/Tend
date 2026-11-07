@@ -1719,3 +1719,109 @@ button:active {
   }
 }
 
+/* Single-screen welcome layout */
+.welcome-quick-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.welcome-single-screen {
+  min-height: auto;
+}
+.welcome-side-features {
+  margin-top: 36px;
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #ffffff44;
+  backdrop-filter: blur(6px);
+  padding: 16px 20px;
+  border-radius: 14px;
+  border: 1px solid #74926435;
+  font-size: 12px;
+  position: relative;
+  z-index: 1;
+}
+.welcome-side-features > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+}
+.welcome-side-features strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+.welcome-side-features svg {
+  color: var(--green);
+  flex-shrink: 0;
+}
+.welcome-action-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.welcome-single-form .field {
+  margin-bottom: 16px;
+}
+.welcome-single-form .welcome-duration {
+  margin: 18px 0 22px;
+}
+
+@media (max-width: 900px) {
+  .welcome-single-screen {
+    max-width: 650px;
+  }
+  .welcome-side-features {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .welcome-single-screen .welcome-art {
+    display: block !important;
+    border: 1px solid #aab69950 !important;
+    border-radius: 14px !important;
+    height: 135px !important;
+    min-height: 135px !important;
+    overflow: hidden !important;
+    margin: 0 0 16px !important;
+    padding: 0 !important;
+    text-align: left !important;
+    position: relative !important;
+  }
+  .welcome-single-screen .welcome-art > svg {
+    height: 160px !important;
+    width: 210px !important;
+    position: absolute !important;
+    right: -15px !important;
+    bottom: -16px !important;
+    transform: rotate(-6deg) !important;
+  }
+  .welcome-single-screen .welcome-art > .eyebrow {
+    font-size: 7px !important;
+    top: 18px !important;
+    left: 16px !important;
+    max-width: 118px !important;
+    line-height: 1.7 !important;
+  }
+  .welcome-single-screen .welcome-art > .hand {
+    font-size: 19px !important;
+    position: absolute !important;
+    top: 65px !important;
+    left: 16px !important;
+    width: 100px !important;
+    line-height: 0.95 !important;
+    margin: 0 !important;
+    transform: rotate(-5deg) !important;
+  }
+  .welcome-single-screen .welcome-paper-stamp,
+  .welcome-single-screen .welcome-side-features {
+    display: none !important;
+  }
+}
+
