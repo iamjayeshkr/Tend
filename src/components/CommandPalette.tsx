@@ -46,6 +46,7 @@ interface CommandPaletteProps {
   onOpenActivity: () => void;
   onOpenSettings: () => void;
   onOpenShortcutsGuide: () => void;
+  onOpenGuide?: () => void;
   onOpenAuth?: () => void;
   onSignOut?: () => void;
 }
@@ -64,6 +65,7 @@ export function CommandPalette({
   onOpenActivity,
   onOpenSettings,
   onOpenShortcutsGuide,
+  onOpenGuide,
   onOpenAuth,
   onSignOut,
 }: CommandPaletteProps) {
@@ -249,6 +251,18 @@ export function CommandPalette({
         onClose();
       },
     },
+    ...(onOpenGuide ? [{
+      id: 'open-guide',
+      title: 'Field Guide & Onboarding Walkthrough',
+      subtitle: 'Revisit the welcome flow, philosophy, and first setup steps',
+      category: 'System' as const,
+      icon: BookOpen,
+      keywords: ['guide', 'onboarding', 'welcome', 'walkthrough', 'tour', 'help', 'tutorial'],
+      onExecute: () => {
+        onOpenGuide();
+        onClose();
+      },
+    }] : []),
     ...(onOpenAuth ? [{
       id: 'open-auth',
       title: 'Sign In / Account Access (Clerk)',
@@ -273,7 +287,7 @@ export function CommandPalette({
         onClose();
       },
     }] : []),
-  ], [modSymbol, onNewNote, onNewTask, timerActive, timerPaused, onToggleTimer, onStartTimer, onOpenReflection, onOpenActivity, onGoPage, onOpenShortcutsGuide, onOpenSettings, onOpenAuth, onSignOut, onClose]);
+  ], [modSymbol, onNewNote, onNewTask, timerActive, timerPaused, onToggleTimer, onStartTimer, onOpenReflection, onOpenActivity, onGoPage, onOpenShortcutsGuide, onOpenSettings, onOpenGuide, onOpenAuth, onSignOut, onClose]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

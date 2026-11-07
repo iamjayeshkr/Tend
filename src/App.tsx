@@ -234,7 +234,13 @@ export default function App({ environment }: { environment: PublicEnvironment })
     [now, setNow] = useState(Date.now()),
     [toast, setToast] = useState(""),
     [busy, setBusy] = useState(false);
-  const [showGuide, setShowGuide] = useState(false);
+  const [showGuide, setShowGuide] = useState(() => {
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash.toLowerCase();
+      return hash.startsWith("#onboarding") || hash.startsWith("#welcome") || hash.startsWith("#guide");
+    }
+    return false;
+  });
   const [currentView, setCurrentView] = useState<"app" | "landing" | "docs" | "auth">(() => {
     if (typeof window !== "undefined") {
       const hash = window.location.hash.toLowerCase();
@@ -248,7 +254,10 @@ export default function App({ environment }: { environment: PublicEnvironment })
         hash.startsWith("#notebook") ||
         hash.startsWith("#you") ||
         hash.startsWith("#reflect") ||
-        hash.startsWith("#rhythm")
+        hash.startsWith("#rhythm") ||
+        hash.startsWith("#onboarding") ||
+        hash.startsWith("#welcome") ||
+        hash.startsWith("#guide")
       ) {
         if (environment.cloud && identity.status !== "signedIn") {
           return "auth";
@@ -275,13 +284,19 @@ export default function App({ environment }: { environment: PublicEnvironment })
         hash.startsWith("#notebook") ||
         hash.startsWith("#you") ||
         hash.startsWith("#reflect") ||
-        hash.startsWith("#rhythm")
+        hash.startsWith("#rhythm") ||
+        hash.startsWith("#onboarding") ||
+        hash.startsWith("#welcome") ||
+        hash.startsWith("#guide")
       ) {
         if (environment.cloud && identity.status !== "signedIn") {
           setAuthInitialMode("signin");
           setCurrentView("auth");
           window.location.hash = "#auth";
           return;
+        }
+        if (hash.startsWith("#onboarding") || hash.startsWith("#welcome") || hash.startsWith("#guide")) {
+          setShowGuide(true);
         }
         setCurrentView("app");
       } else if (hash.startsWith("#docs")) {
@@ -1321,7 +1336,83 @@ export default function App({ environment }: { environment: PublicEnvironment })
     shortcuts: "Keyboard shortcuts",
   };
   const selectedReview = s.reviews.find((r) => r.date === today);
-  if (!s.onboarded || showGuide) return <Welcome settings={s.settings} onCancel={s.onboarded?()=>setShowGuide(false):undefined} onFinish={async(settings,intention)=>{const ok=await commit(v=>({...v,onboarded:true,settings,tasks:intention?[...v.tasks,{id:uid(),title:intention,done:false,date:today,category:"study" as Category}]:v.tasks}));if(ok){setShowGuide(false);setFocusMins(settings.focusMinutes);go("today");if(stateRef.current)alarmSync(stateRef.current);}return ok;}} onLanding={() => navigateToView("landing", "#landing")} onDocs={() => navigateToView("docs", "#docs")} />;
+  if (!s.onboarded || showGuide) {
+    return (
+      <Welcome
+        settings={s.settings}
+        onCancel={
+          s.onboarded
+            ? () => {
+                setShowGuide(false);
+                if (
+                  typeof window !== "undefined" &&
+                  (window.location.hash.startsWith("#onboarding") ||
+                    window.location.hash.startsWith("#welcome") ||
+                    window.location.hash.startsWith("#guide"))
+                ) {
+                  window.location.hash = "#app";
+                }
+              }
+            : undefined
+        }
+        onSkip={async () => {
+          const ok = await commit((v) => ({ ...v, onboarded: true }));
+          if (ok) {
+            setShowGuide(false);
+            go("today");
+            if (
+              typeof window !== "undefined" &&
+              (window.location.hash.startsWith("#onboarding") ||
+                window.location.hash.startsWith("#welcome") ||
+                window.location.hash.startsWith("#guide"))
+            ) {
+              window.location.hash = "#app";
+            }
+          }
+          return ok;
+        }}
+        onFinish={async (settings, intention) => {
+          const ok = await commit((v) => ({
+            ...v,
+            onboarded: true,
+            settings,
+            tasks: intention
+              ? [
+                  ...v.tasks,
+                  {
+                    id: uid(),
+                    title: intention,
+                    done: false,
+                    date: today,
+                    category: "study" as Category,
+                  },
+                ]
+              : v.tasks,
+          }));
+          if (ok) {
+            setShowGuide(false);
+            setFocusMins(settings.focusMinutes);
+            go("today");
+            if (
+              typeof window !== "undefined" &&
+              (window.location.hash.startsWith("#onboarding") ||
+                window.location.hash.startsWith("#welcome") ||
+                window.location.hash.startsWith("#guide"))
+            ) {
+              window.location.hash = "#app";
+            }
+            if (stateRef.current) alarmSync(stateRef.current);
+          }
+          return ok;
+        }}
+        onLanding={() => navigateToView("landing", "#landing")}
+        onDocs={() => navigateToView("docs", "#docs")}
+        onSignOut={identity.status === "signedIn" ? requestAccountSignOut : undefined}
+        userEmail={identity.status === "signedIn" ? identity.userEmail : undefined}
+        userName={identity.status === "signedIn" ? identity.userName : undefined}
+      />
+    );
+  }
   const openFocus=(title?:string,category?:Category)=>{if(!active){setFocusTitle(title||"");setFocusCategory(category||"study");setFocusMins(s.settings.focusMinutes);setFocusTaskId(s.tasks.find(t=>!t.done&&t.title===title&&t.date===today)?.id||null);setFocusCompleted(false);}go("focus");};
   const selectedNav=["rhythm","reflect"].includes(page)?"you":page;
   return (
@@ -3747,6 +3838,7 @@ export default function App({ environment }: { environment: PublicEnvironment })
         onOpenActivity={() => setModal("activity")}
         onOpenSettings={() => setModal("settings")}
         onOpenShortcutsGuide={() => setModal("shortcuts")}
+        onOpenGuide={() => setShowGuide(true)}
         onOpenAuth={() => navigateToView("auth", "#auth")}
         onSignOut={requestAccountSignOut}
       />

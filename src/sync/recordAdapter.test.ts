@@ -55,6 +55,18 @@ describe('stateToRecords and recordsToState', () => {
     expect(serialized).not.toContain('notifications')
     expect(serialized).not.toContain('wakeLockEnabled')
   })
+
+  it('infers onboarded: true when remote records contain user data even if base was default un-onboarded state', () => {
+    const freshBase = defaultState()
+    expect(freshBase.onboarded).toBe(false)
+
+    const stateWithTasks = schema1CompleteState()
+    const records = stateToRecords(stateWithTasks)
+
+    const reconstructed = recordsToState(freshBase, asRemote(records.values()))
+    expect(reconstructed.onboarded).toBe(true)
+    expect(reconstructed.tasks.length).toBeGreaterThan(0)
+  })
 })
 
 describe('diffRecords', () => {

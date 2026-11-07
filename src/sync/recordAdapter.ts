@@ -128,6 +128,17 @@ export function recordsToState(base: AppState, records: Iterable<RemoteRecord>):
       ;(next.settings as unknown as Record<string, JsonValue>)[key] = record.data!.value
     }
   }
+  next.onboarded = Boolean(
+    base.onboarded ||
+    next.tasks.length > 0 ||
+    next.routine.length > 0 ||
+    next.activities.length > 0 ||
+    next.ideas.length > 0 ||
+    next.reviews.length > 0 ||
+    next.sets.length > 0 ||
+    Object.keys(next.wakeLogs).length > 0 ||
+    Object.keys(next.sleepLogs).length > 0,
+  )
   return parseBackup(JSON.stringify(next))
 }
 

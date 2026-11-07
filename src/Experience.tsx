@@ -30,6 +30,7 @@ import {
   Clock,
   Briefcase,
   Trash2,
+  LogOut,
 } from 'lucide-react';
 import { Garden, Sprout, Star } from './Doodles';
 import {
@@ -45,11 +46,14 @@ import {
 } from './core';
 
 type Commit = (update: (state: AppState) => AppState) => Promise<boolean>;
-const clock = (time: string) =>
-  new Date(`2000-01-01T${time}`).toLocaleTimeString('en', {
+const clock = (time: string) => {
+  if (!time) return '';
+  const parsed = new Date(`2000-01-01T${time}`);
+  return isNaN(parsed.getTime()) ? time : parsed.toLocaleTimeString('en', {
     hour: 'numeric',
     minute: '2-digit',
   });
+};
 
 const categoryListMap: Record<string, Category[]> = {
   all: ['study', 'work', 'project', 'exercise', 'rest', 'life'],
@@ -63,26 +67,73 @@ export function Welcome({
   settings,
   onFinish,
   onCancel,
+  onSkip,
   onLanding,
   onDocs,
   onAuth,
+  onSignOut,
+  userEmail,
+  userName,
 }: {
   settings: UserSettings;
   onFinish: (settings: UserSettings, intention: string) => Promise<boolean>;
   onCancel?: () => void;
+  onSkip?: () => Promise<boolean> | void;
   onLanding?: () => void;
   onDocs?: () => void;
   onAuth?: () => void;
+  onSignOut?: () => Promise<void> | void;
+  userEmail?: string;
+  userName?: string;
 }) {
   const [step, setStep] = useState(0),
-    [name, setName] = useState(settings.name),
-    [wake, setWake] = useState(settings.wake),
-    [sleep, setSleep] = useState(settings.sleep),
-    [minutes, setMinutes] = useState(settings.focusMinutes),
+    [name, setName] = useState(settings.name || userName || ''),
+    [wake, setWake] = useState(settings.wake || '06:30'),
+    [sleep, setSleep] = useState(settings.sleep || '23:00'),
+    [minutes, setMinutes] = useState(settings.focusMinutes || 25),
     [intention, setIntention] = useState(''),
     [saving, setSaving] = useState(false),
     [error, setError] = useState('');
+
+  const cleanTime = (val: string, fallback: string) =>
+    /^([01]\d|2[0-3]):[0-5]\d$/.test(val) ? val : fallback;
+
   const finish = async () => {
+    setSaving(true);
+    setError('');
+    const finalWake = cleanTime(wake, settings.wake || '06:30');
+    const finalSleep = cleanTime(sleep, settings.sleep || '23:00');
+    try {
+      if (
+        !(await onFinish(
+          {
+            ...settings,
+            name: name.trim(),
+            wake: finalWake,
+            sleep: finalSleep,
+            focusMinutes: minutes || 25,
+          },
+          intention.trim(),
+        ))
+      ) {
+        setError('Your setup couldn’t be saved. Please check your inputs and try again.');
+      }
+    } catch {
+      setError('Your setup couldn’t be saved. Please check your inputs and try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSkip = async () => {
+    if (onCancel) {
+      onCancel();
+      return;
+    }
+    if (onSkip) {
+      await onSkip();
+      return;
+    }
     setSaving(true);
     setError('');
     try {
@@ -90,31 +141,69 @@ export function Welcome({
         !(await onFinish(
           {
             ...settings,
-            name: name.trim(),
-            wake,
-            sleep,
-            focusMinutes: minutes,
+            wake: cleanTime(settings.wake, '06:30'),
+            sleep: cleanTime(settings.sleep, '23:00'),
+            focusMinutes: settings.focusMinutes || 25,
           },
-          intention.trim(),
+          '',
         ))
-      )
-        setError('Your setup couldn’t be saved. Please try again.');
+      ) {
+        setError('Could not skip setup right now. Please try again.');
+      }
     } catch {
-      setError('Your setup couldn’t be saved. Please try again.');
+      setError('Could not skip setup right now. Please try again.');
     } finally {
       setSaving(false);
     }
   };
+
   return (
     <div className="welcome-world">
       <header className="welcome-brand">
-        <span>
+        <button
+          type="button"
+          className="welcome-brand-btn"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '3px',
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            font: '500 40px Fraunces',
+            color: 'inherit',
+            cursor: onLanding ? 'pointer' : 'default',
+            textAlign: 'left',
+          }}
+          onClick={onLanding}
+          aria-label="Tend overview"
+        >
           <Sprout />tend<span className="brand-dot">.</span>
-        </span>
+        </button>
         <div
           className="welcome-top-nav-links"
-          style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: 'auto' }}
+          style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto', flexWrap: 'wrap' }}
         >
+          {userEmail && (
+            <span
+              className="welcome-user-chip"
+              style={{
+                fontSize: '11px',
+                color: 'var(--muted)',
+                background: 'var(--surface)',
+                border: '1px solid var(--line)',
+                padding: '4px 8px',
+                borderRadius: '12px',
+                maxWidth: '160px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+              title={`Signed in as ${userEmail}`}
+            >
+              {userEmail}
+            </span>
+          )}
           {onLanding && (
             <button
               type="button"
@@ -135,7 +224,18 @@ export function Welcome({
               Docs
             </button>
           )}
-          {onAuth && (
+          {onSignOut ? (
+            <button
+              type="button"
+              className="outline"
+              style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}
+              onClick={onSignOut}
+              title="Sign out of your Tend account"
+            >
+              <LogOut size={13} />
+              Sign out
+            </button>
+          ) : onAuth ? (
             <button
               type="button"
               className="outline"
@@ -144,7 +244,7 @@ export function Welcome({
             >
               Sign in / Sign up
             </button>
-          )}
+          ) : null}
           <span className="welcome-private">
             <ShieldCheck size={15} />Private by nature
           </span>
@@ -154,11 +254,29 @@ export function Welcome({
         <aside className="welcome-art">
           <span className="eyebrow">A FIELD GUIDE TO YOUR DAY</span>
           <Garden />
-          <span className="hand">a little structure. a lot of you.</span>
+          <span className="hand">
+            {step === 0 && 'a little structure. a lot of you.'}
+            {step === 1 && 'your rhythm, your hours.'}
+            {step === 2 && 'one focus at a time.'}
+          </span>
           <div className="welcome-paper-stamp">
             <Leaf size={19} />
             <span>
-              GROW AT<br />YOUR OWN PACE
+              {step === 0 && (
+                <>
+                  GROW AT<br />YOUR OWN PACE
+                </>
+              )}
+              {step === 1 && (
+                <>
+                  QUIET<br />CONSISTENCY
+                </>
+              )}
+              {step === 2 && (
+                <>
+                  DEFEND YOUR<br />ATTENTION
+                </>
+              )}
             </span>
           </div>
         </aside>
@@ -167,14 +285,41 @@ export function Welcome({
             <span>
               {String(step + 1).padStart(2, '0')} <small>/ 03</small>
             </span>
-            <div>
+            <div role="tablist" aria-label="Onboarding steps" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               {[0, 1, 2].map((n) => (
-                <i key={n} className={step >= n ? 'done' : ''} />
+                <button
+                  key={n}
+                  type="button"
+                  role="tab"
+                  aria-selected={step === n}
+                  aria-label={`Step ${n + 1}`}
+                  onClick={() => setStep(n)}
+                  className={`welcome-progress-step-btn ${step >= n ? 'done' : ''}`}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: '6px 1px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  <i className={step >= n ? 'done' : ''} />
+                </button>
               ))}
             </div>
-            {onCancel && (
-              <button className="icon-button" onClick={onCancel} aria-label="Close guide">
+            {onCancel ? (
+              <button className="icon-button" onClick={onCancel} aria-label="Close guide" style={{ marginLeft: 'auto' }}>
                 <X size={19} />
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="text-button"
+                style={{ fontSize: '12px', color: 'var(--muted)', marginLeft: 'auto', fontWeight: 500 }}
+                onClick={handleSkip}
+              >
+                Skip setup
               </button>
             )}
           </div>
@@ -221,8 +366,18 @@ export function Welcome({
               <button className="primary welcome-next" onClick={() => setStep(1)}>
                 Make it mine<ArrowRight size={18} />
               </button>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginTop: '12px' }}>
+                <button
+                  type="button"
+                  className="text-button"
+                  style={{ fontSize: '12px', color: 'var(--muted)' }}
+                  onClick={handleSkip}
+                >
+                  Skip setup & explore Tend
+                </button>
+              </div>
               <p className="welcome-footnote">
-                No account required. Works offline.{' '}
+                {onSignOut ? 'Signed in securely with your Tend account.' : 'No account required. Works offline.'}{' '}
                 {onLanding && (
                   <button
                     type="button"
@@ -240,6 +395,7 @@ export function Welcome({
             <form
               onSubmit={(e) => {
                 e.preventDefault();
+                setError('');
                 setStep(2);
               }}
             >
@@ -300,9 +456,19 @@ export function Welcome({
                 <button type="button" className="text-button" onClick={() => setStep(0)}>
                   <ArrowLeft size={16} />Back
                 </button>
-                <button className="primary">
-                  Next<ArrowRight size={18} />
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <button
+                    type="button"
+                    className="text-button"
+                    style={{ fontSize: '12px', color: 'var(--muted)' }}
+                    onClick={handleSkip}
+                  >
+                    Skip
+                  </button>
+                  <button type="submit" className="primary">
+                    Next<ArrowRight size={18} />
+                  </button>
+                </div>
               </div>
             </form>
           )}

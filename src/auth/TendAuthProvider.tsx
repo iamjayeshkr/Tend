@@ -30,10 +30,14 @@ function ClerkIdentityBridge({ children }: { children: ReactNode }) {
       }
     }
     verifiedUserId.current = userId
+    const userEmail = clerk.user?.primaryEmailAddress?.emailAddress
+    const userName = clerk.user?.fullName || clerk.user?.firstName || undefined
     return {
       status: 'signedIn',
       cloudAvailable: true,
       userId,
+      userEmail,
+      userName,
       getAccessToken: ({ forceRefresh } = {}) => getToken(forceRefresh ? { skipCache: true } : undefined),
       signOut: async () => {
         verifiedUserId.current = null

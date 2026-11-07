@@ -1646,3 +1646,76 @@ button:active {
   transform: scale(0.98);
 }
 
+/* Onboarding Welcome refinements */
+.welcome-brand-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  padding: 0;
+  font: 500 40px Fraunces;
+  color: inherit;
+  text-align: left;
+}
+.welcome-brand-btn svg {
+  width: 34px;
+  height: 38px;
+  color: var(--green);
+}
+.welcome-user-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 4px 8px;
+  border-radius: 12px;
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.welcome-progress-step-btn {
+  background: none;
+  border: 0;
+  padding: 6px 1px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+.welcome-progress-step-btn i {
+  width: 23px;
+  height: 3px;
+  background: var(--line);
+  border-radius: 10px;
+  transition: background 0.2s ease, width 0.2s ease;
+}
+.welcome-progress-step-btn.done i,
+.welcome-progress-step-btn[aria-selected="true"] i {
+  background: var(--green);
+}
+.welcome-progress-step-btn:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+@media (max-width: 900px) {
+  .welcome-brand-btn {
+    font-size: 34px !important;
+  }
+  .welcome-brand-btn svg {
+    width: 29px !important;
+    height: 32px !important;
+  }
+}
+@media (max-width: 600px) {
+  .welcome-top-nav-links {
+    gap: 6px !important;
+  }
+  .welcome-top-nav-links .welcome-private {
+    display: none;
+  }
+}
+
